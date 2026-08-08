@@ -13,8 +13,10 @@ _lock = threading.Lock()
 
 
 def _conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(config.DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(config.DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     return conn
 
 
@@ -118,6 +120,23 @@ def init_db() -> None:
                 value      TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS report_feedback (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id        INTEGER NOT NULL,
+                user_id        INTEGER NOT NULL,
+                customer_id    INTEGER,
+                customer_name  TEXT NOT NULL DEFAULT '',
+                customer_type  TEXT NOT NULL DEFAULT 'institution',
+                rating         TEXT NOT NULL DEFAULT 'useful',
+                comment        TEXT NOT NULL DEFAULT '',
+                status         TEXT NOT NULL DEFAULT 'pending',
+                adopted_document_id INTEGER,
+                created_at     INTEGER NOT NULL,
+                updated_at     INTEGER NOT NULL,
+                UNIQUE(task_id, user_id),
+                FOREIGN KEY (task_id) REFERENCES tasks(id),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
             """
         )
         columns = {row[1] for row in conn.execute("PRAGMA table_info(tasks)")}
@@ -132,6 +151,15 @@ def init_db() -> None:
             conn.execute("ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ''")
         if "profile_dismissed" not in user_columns:
             conn.execute("ALTER TABLE users ADD COLUMN profile_dismissed INTEGER DEFAULT 0")
+        if "stage_index" not in columns:
+            conn.execute("ALTER TABLE tasks ADD COLUMN stage_index INTEGER DEFAULT 0")
+        if "stage_data" not in columns:
+            conn.execute("ALTER TABLE tasks ADD COLUMN stage_data TEXT DEFAULT '{}'")
+        fact_columns = {row[1] for row in conn.execute("PRAGMA table_info(customer_facts)")}
+        if "source_title" not in fact_columns:
+            conn.execute("ALTER TABLE customer_facts ADD COLUMN source_title TEXT DEFAULT ''")
+        if "published_at" not in fact_columns:
+            conn.execute("ALTER TABLE customer_facts ADD COLUMN published_at TEXT DEFAULT '未知'")
 
 
 # ---------- users ----------
@@ -230,12 +258,81 @@ def count_tasks_today(user_id: int) -> int:
         return int(row["n"])
 
 
+def _cleanup_task_files(task_row) -> None:
+    """删除任务关联的 docx 报告文件（内部报告 + 客户方案）。"""
+    if not task_row["report_json"]:
+        return
+    try:
+        report = json.loads(task_row["report_json"])
+        for filename in [report.get("docx_name"), report.get("solution", {}).get("docx_name")]:
+            if filename:
+                path = config.REPORT_DIR / filename
+                if path.exists():
+                    path.unlink()
+    except Exception:
+        pass
+
+
+def enqueue_task(task_id: int, resume_stage: int = 0) -> None:
+    """将任务加入队列，从指定阶段开始执行（0 = 从头开始）。"""
+    now = int(time.time())
+    with _lock, _conn() as conn:
+        conn.execute(
+            "UPDATE tasks SET status = 'pending', stage_index = ?, error = '', updated_at = ? WHERE id = ?",
+            (resume_stage, now, task_id),
+        )
+
+
+def dequeue_task() -> int | None:
+    """从队列中取出最早的一个待执行任务，标记为 running，返回 task_id。无任务时返回 None。"""
+    now = int(time.time())
+    with _lock, _conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM tasks WHERE status = 'pending' ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return None
+        conn.execute(
+            "UPDATE tasks SET status = 'running', updated_at = ? WHERE id = ?",
+            (now, row["id"]),
+        )
+        return row["id"]
+
+
+def set_stage_data(task_id: int, stage_index: int, data: dict) -> None:
+    """保存某个阶段的中间结果到 stage_data JSON 字段。"""
+    with _lock, _conn() as conn:
+        row = conn.execute("SELECT stage_data FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        stage_data = json.loads(row["stage_data"] or "{}") if row else {}
+        stage_data[str(stage_index)] = data
+        conn.execute(
+            "UPDATE tasks SET stage_data = ?, stage_index = ? + 1, updated_at = ? WHERE id = ?",
+            (json.dumps(stage_data, ensure_ascii=False), stage_index, int(time.time()), task_id),
+        )
+
+
+def get_stage_data(task_id: int) -> dict:
+    """读取任务的所有阶段中间数据。"""
+    with _lock, _conn() as conn:
+        row = conn.execute("SELECT stage_data FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        if not row or not row["stage_data"]:
+            return {}
+        return json.loads(row["stage_data"])
+
+
+def is_task_cancelled(task_id: int) -> bool:
+    """检查任务是否已被用户取消。"""
+    with _lock, _conn() as conn:
+        row = conn.execute("SELECT status FROM tasks WHERE id = ?", (task_id,)).fetchone()
+        return row and row["status"] == "cancelled"
+
+
 def cancel_task(task_id: int, user_id: int) -> bool:
     """用户取消自己尚未完成的任务，返回是否成功。"""
     now = int(time.time())
     with _lock, _conn() as conn:
         cur = conn.execute(
-            "UPDATE tasks SET status = 'failed', error = '已手动取消', updated_at = ? "
+            "UPDATE tasks SET status = 'cancelled', error = '已手动取消', updated_at = ? "
             "WHERE id = ? AND user_id = ? AND status IN ('pending', 'running')",
             (now, task_id, user_id),
         )
@@ -255,25 +352,30 @@ def fail_stale_tasks() -> int:
 
 
 def delete_task(task_id: int, user_id: int) -> bool:
-    """删除指定任务（含关联 sources），返回是否成功。"""
+    """删除指定任务（含关联 sources 与报告文件），返回是否成功。"""
     with _lock, _conn() as conn:
-        cur = conn.execute(
-            "DELETE FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
-        )
-        if cur.rowcount > 0:
-            conn.execute("DELETE FROM sources WHERE task_id = ?", (task_id,))
-            return True
-        return False
+        row = conn.execute(
+            "SELECT * FROM tasks WHERE id = ? AND user_id = ?", (task_id, user_id)
+        ).fetchone()
+        if not row:
+            return False
+        _cleanup_task_files(row)
+        conn.execute("DELETE FROM sources WHERE task_id = ?", (task_id,))
+        conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        return True
 
 
 def clear_all_tasks(user_id: int) -> int:
-    """清空用户的所有分析任务（含关联 sources），返回删除数量。"""
+    """清空用户的所有分析任务（含关联 sources 与报告文件），返回删除数量。"""
     with _lock, _conn() as conn:
-        task_ids = [r["id"] for r in conn.execute(
-            "SELECT id FROM tasks WHERE user_id = ?", (user_id,)
-        ).fetchall()]
-        if not task_ids:
+        rows = conn.execute(
+            "SELECT * FROM tasks WHERE user_id = ?", (user_id,)
+        ).fetchall()
+        if not rows:
             return 0
+        for row in rows:
+            _cleanup_task_files(row)
+        task_ids = [r["id"] for r in rows]
         placeholders = ",".join("?" * len(task_ids))
         conn.execute(f"DELETE FROM sources WHERE task_id IN ({placeholders})", task_ids)
         cur = conn.execute("DELETE FROM tasks WHERE user_id = ?", (user_id,))
@@ -317,8 +419,11 @@ def reset_task_for_rerun(task_id: int, extra_notes: str = "") -> dict:
     """将任务重置为 pending 以便重新分析（保留 id，更新内容而非新建条目）。"""
     now = int(time.time())
     with _lock, _conn() as conn:
+        row = conn.execute("SELECT * FROM tasks WHERE id=?", (task_id,)).fetchone()
+        if row:
+            _cleanup_task_files(row)
         conn.execute(
-            """UPDATE tasks SET status='pending', stage='', error='',
+            """UPDATE tasks SET status='pending', stage='', error='', stage_index=0, stage_data='{}',
                report_json='', report_md='', extra_notes=?, updated_at=?
                WHERE id=?""",
             (extra_notes, now, task_id),
@@ -384,6 +489,9 @@ def add_profile_facts(customer_id: int, task_id: int, facts: list, confidence: s
         for item in facts:
             fact = item.get("fact", "") if isinstance(item, dict) else str(item)
             urls = item.get("source_urls", source_urls) if isinstance(item, dict) else source_urls
+            source_title = item.get("source_title", "") if isinstance(item, dict) else ""
+            published_at = item.get("published_at", "未知") if isinstance(item, dict) else "未知"
+            fact_confidence = item.get("confidence", confidence) if isinstance(item, dict) else confidence
             if not fact.strip():
                 continue
             exists = conn.execute(
@@ -393,9 +501,10 @@ def add_profile_facts(customer_id: int, task_id: int, facts: list, confidence: s
             if not exists:
                 conn.execute(
                     """INSERT INTO customer_facts
-                       (customer_id, task_id, fact, confidence, source_urls, created_at, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (customer_id, task_id, fact.strip(), confidence, json.dumps(urls, ensure_ascii=False), now, now),
+                       (customer_id, task_id, fact, confidence, source_urls, source_title, published_at, created_at, updated_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (customer_id, task_id, fact.strip(), fact_confidence, json.dumps(urls, ensure_ascii=False),
+                     source_title, published_at, now, now),
                 )
 
 
@@ -569,3 +678,77 @@ def set_knowledge_status(doc_id: int, status: str) -> None:
     with _lock, _conn() as conn:
         conn.execute("UPDATE knowledge_documents SET status = ?, updated_at = ? WHERE id = ?",
                      (status, int(time.time()), doc_id))
+
+
+# ---------- 报告反馈（闭环：反馈 → 管理员采纳 → 进化知识库） ----------
+
+def upsert_report_feedback(
+    task_id: int,
+    user_id: int,
+    customer_id: int | None,
+    customer_name: str,
+    customer_type: str,
+    rating: str,
+    comment: str,
+) -> dict:
+    """写入/更新某用户对某报告的反馈（同一 task+user 唯一，重复提交则覆盖并重置为待处理）。"""
+    now = int(time.time())
+    with _lock, _conn() as conn:
+        conn.execute(
+            """INSERT INTO report_feedback
+               (task_id, user_id, customer_id, customer_name, customer_type,
+                rating, comment, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+               ON CONFLICT(task_id, user_id) DO UPDATE SET
+                 rating = excluded.rating,
+                 comment = excluded.comment,
+                 status = 'pending',
+                 adopted_document_id = NULL,
+                 updated_at = excluded.updated_at""",
+            (task_id, user_id, customer_id, customer_name, customer_type,
+             rating, comment, now, now),
+        )
+        row = conn.execute(
+            "SELECT * FROM report_feedback WHERE task_id = ? AND user_id = ?",
+            (task_id, user_id),
+        ).fetchone()
+        return dict(row)
+
+
+def get_report_feedback(task_id: int, user_id: int) -> dict | None:
+    with _lock, _conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM report_feedback WHERE task_id = ? AND user_id = ?",
+            (task_id, user_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_feedback(feedback_id: int) -> dict | None:
+    with _lock, _conn() as conn:
+        row = conn.execute("SELECT * FROM report_feedback WHERE id = ?", (feedback_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def list_feedback_admin(status: str | None = None, limit: int = 100) -> list[dict]:
+    """管理员查看反馈列表，可按状态过滤（默认全部，最新在前）。"""
+    with _lock, _conn() as conn:
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM report_feedback WHERE status = ? ORDER BY id DESC LIMIT ?",
+                (status, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM report_feedback ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_feedback_status(feedback_id: int, status: str, adopted_document_id: int | None = None) -> None:
+    with _lock, _conn() as conn:
+        conn.execute(
+            "UPDATE report_feedback SET status = ?, adopted_document_id = ?, updated_at = ? WHERE id = ?",
+            (status, adopted_document_id, int(time.time()), feedback_id),
+        )

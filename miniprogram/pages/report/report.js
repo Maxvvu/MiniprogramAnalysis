@@ -39,7 +39,12 @@ Page({
     downloading: false,
     downloadingSolution: false,
     steps: [],
-    elapsedText: ''
+    elapsedText: '',
+    // 报告反馈闭环
+    feedbackRating: '',        // '' / 'useful' / 'needs_improvement'
+    feedbackComment: '',
+    feedbackSubmitted: false,  // 是否已提交过
+    submittingFeedback: false
   },
 
   onLoad(options) {
@@ -116,6 +121,7 @@ Page({
       ),
       solution: task.solution && task.solution.title ? task.solution : null
     })
+    this.loadFeedback()
   },
 
   onDownload() {
@@ -172,6 +178,53 @@ Page({
       },
       complete: () => this.setData({ downloadingSolution: false })
     })
+  },
+
+  async loadFeedback() {
+    try {
+      const res = await request(`/api/analysis/${this.data.taskId}/feedback`)
+      const fb = res.feedback
+      if (fb) {
+        this.setData({
+          feedbackRating: fb.rating || '',
+          feedbackComment: fb.comment || '',
+          feedbackSubmitted: true
+        })
+      }
+    } catch (err) {
+      // 反馈回显失败不影响主报告展示，静默忽略
+    }
+  },
+
+  onPickRating(e) {
+    const rating = e.currentTarget.dataset.rating
+    this.setData({ feedbackRating: rating, feedbackSubmitted: false })
+  },
+
+  onFeedbackInput(e) {
+    this.setData({ feedbackComment: e.detail.value })
+  },
+
+  async submitFeedback() {
+    const { feedbackRating, feedbackComment, submittingFeedback } = this.data
+    if (submittingFeedback) return
+    if (!feedbackRating) {
+      wx.showToast({ title: '请先选择「有用」或「需改进」', icon: 'none' })
+      return
+    }
+    this.setData({ submittingFeedback: true })
+    try {
+      await request(`/api/analysis/${this.data.taskId}/feedback`, {
+        method: 'POST',
+        data: { rating: feedbackRating, comment: (feedbackComment || '').trim() }
+      })
+      this.setData({ feedbackSubmitted: true })
+      wx.showToast({ title: '已收到，谢谢反馈', icon: 'success' })
+    } catch (err) {
+      wx.showToast({ title: err.message || '提交失败', icon: 'none' })
+    } finally {
+      this.setData({ submittingFeedback: false })
+    }
   },
 
   onRetry() {

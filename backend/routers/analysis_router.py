@@ -2,14 +2,13 @@
 import json
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 import auth
 import config
 import database
 import schemas
-from agent import pipeline
 
 router = APIRouter(prefix="/api/analysis", tags=["analysis"])
 
@@ -73,7 +72,6 @@ def get_quota(user: dict = Depends(auth.get_current_user)):
 @router.post("")
 def create_analysis(
     body: schemas.AnalysisRequest,
-    background: BackgroundTasks,
     user: dict = Depends(auth.get_current_user),
 ):
     # 结果复用：同一用户近期已分析过同一客户且未强制重跑 → 直接返回旧报告，不耗额度不烧 token
@@ -97,7 +95,7 @@ def create_analysis(
         task = database.reset_task_for_rerun(existing["id"], body.extra_notes)
     else:
         task = database.create_task(user["id"], body.customer_name, body.customer_type, body.extra_notes)
-    background.add_task(pipeline.run_analysis, task["id"])
+    database.enqueue_task(task["id"])
     return {"task_id": task["id"], "status": task["status"]}
 
 
@@ -123,6 +121,40 @@ def cancel_analysis(task_id: int, user: dict = Depends(auth.get_current_user)):
     if not database.cancel_task(task_id, user["id"]):
         raise HTTPException(status_code=400, detail="该任务已完成或已取消")
     return {"ok": True}
+
+
+@router.get("/{task_id}/feedback")
+def get_feedback(task_id: int, user: dict = Depends(auth.get_current_user)):
+    """返回当前用户对该报告的反馈（用于前端回显已提交状态），无则 feedback=None。"""
+    task = database.get_task(task_id)
+    if task is None or task["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    fb = database.get_report_feedback(task_id, user["id"])
+    if not fb:
+        return {"feedback": None}
+    return {"feedback": {"rating": fb["rating"], "comment": fb["comment"], "status": fb["status"]}}
+
+
+@router.post("/{task_id}/feedback")
+def submit_feedback(
+    task_id: int,
+    body: schemas.ReportFeedbackRequest,
+    user: dict = Depends(auth.get_current_user),
+):
+    """销售对生成的报告提交反馈：有用/需改进 + 可选补充纠正。同一报告可重复提交覆盖。"""
+    task = database.get_task(task_id)
+    if task is None or task["user_id"] != user["id"]:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    fb = database.upsert_report_feedback(
+        task_id=task_id,
+        user_id=user["id"],
+        customer_id=task.get("customer_id"),
+        customer_name=task["customer_name"],
+        customer_type=task["customer_type"],
+        rating=body.rating,
+        comment=body.comment.strip(),
+    )
+    return {"ok": True, "rating": fb["rating"], "status": fb["status"]}
 
 
 @router.post("/clear")

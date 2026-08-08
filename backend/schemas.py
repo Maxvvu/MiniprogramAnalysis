@@ -61,3 +61,18 @@ class AdminSettingsRequest(BaseModel):
 
 class AdminKnowledgeStatusRequest(BaseModel):
     status: Literal["active", "archived"]
+
+
+# ---------- 报告反馈闭环 ----------
+
+class ReportFeedbackRequest(BaseModel):
+    rating: Literal["useful", "needs_improvement"] = Field(
+        description="useful=有用 needs_improvement=需改进"
+    )
+    comment: str = Field(default="", max_length=2000, description="补充或纠正信息，可选")
+
+
+class AdminFeedbackAdoptRequest(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200, description="入库标题，留空则自动生成")
+    category: Optional[str] = Field(default=None, max_length=50, description="知识分类，留空默认 case")
+    content: Optional[str] = Field(default=None, max_length=100000, description="入库正文，留空则由反馈自动拼装")

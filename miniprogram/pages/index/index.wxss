@@ -2,46 +2,56 @@
   padding-bottom: 60rpx;
 }
 
+.top-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20rpx 24rpx 0;
+}
+
+.admin-entry {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 24rpx;
+  color: var(--brand);
+  font-size: 24rpx;
+  background: var(--brand-soft);
+  border: 1rpx solid var(--brand-line);
+  border-radius: 999rpx;
+}
+
 .input {
-  border: 2rpx solid #e5e8ee;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 92rpx;
+  height: 92rpx;
+  line-height: 92rpx;
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: var(--text);
+  background: #fafbfc;
+}
+
+.input-ph {
+  color: #9aa3af;
   font-size: 28rpx;
 }
 
 .type-title {
-  margin-top: 36rpx;
-}
-
-.type-row {
-  display: flex;
-  gap: 20rpx;
-}
-
-.type-item {
-  flex: 1;
-  text-align: center;
-  padding: 20rpx 0;
-  border: 2rpx solid #e5e8ee;
-  border-radius: 12rpx;
-  color: #5a6270;
-}
-
-.type-item.active {
-  border-color: #2b6de5;
-  color: #2b6de5;
-  background: #eef4fe;
-  font-weight: 500;
+  margin-top: 40rpx;
 }
 
 .textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 2rpx solid #e5e8ee;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
-  height: 160rpx;
+  border: 2rpx solid var(--line);
+  border-radius: 14rpx;
+  padding: 24rpx 24rpx;
+  height: 180rpx;
   font-size: 26rpx;
+  line-height: 1.6;
+  background: #fafbfc;
 }
 
 .submit-area {
@@ -53,17 +63,10 @@
   margin-top: 20rpx;
 }
 
-.admin-entry {
-  text-align: right;
-  padding: 16rpx 24rpx 0;
-  color: #2b6de5;
-  font-size: 26rpx;
-}
-
 .mask {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(9, 30, 54, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,27 +76,34 @@
 .modal {
   width: 600rpx;
   background: #fff;
-  border-radius: 20rpx;
-  padding: 40rpx 36rpx;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx;
   box-sizing: border-box;
+  box-shadow: 0 20rpx 60rpx rgba(9, 30, 54, 0.3);
 }
 
 .modal-title {
-  font-size: 32rpx;
-  font-weight: 600;
+  font-size: 34rpx;
+  font-weight: 700;
   text-align: center;
+  color: var(--text);
 }
 
 .modal-desc {
   font-size: 24rpx;
-  color: #9aa3af;
+  color: var(--text-sub);
   text-align: center;
-  margin: 12rpx 0 28rpx;
+  margin: 14rpx 0 32rpx;
+  line-height: 1.6;
+}
+
+.modal .btn-primary {
+  margin-top: 32rpx;
 }
 
 .modal-skip {
   text-align: center;
-  color: #9aa3af;
+  color: var(--text-sub);
   font-size: 26rpx;
-  margin-top: 24rpx;
+  margin-top: 28rpx;
 }

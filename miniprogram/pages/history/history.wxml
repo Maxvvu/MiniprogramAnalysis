@@ -32,7 +32,9 @@
           <view class="text-secondary">{{item.timeText}}</view>
         </view>
         <view wx:if="{{item.status === 'running'}}" class="text-secondary stage-text">{{item.stage}}</view>
-        <view class="delete-btn" catchtap="onDelete" data-id="{{item.id}}">删除</view>
+        <view class="item-footer">
+          <view class="delete-btn" catchtap="onDelete" data-id="{{item.id}}">删除</view>
+        </view>
       </view>
     </view>
   </block>

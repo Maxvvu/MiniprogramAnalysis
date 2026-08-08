@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import config
 import database
-from routers import admin_router, analysis_router, auth_router, memory_router
+from routers import admin_router, analysis_router, auth_router, knowledge_web_router, memory_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -30,6 +30,7 @@ app.include_router(auth_router.router)
 app.include_router(analysis_router.router)
 app.include_router(memory_router.router)
 app.include_router(admin_router.router)
+app.include_router(knowledge_web_router.router)
 
 
 @app.get("/api/health")

@@ -3,34 +3,38 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 220rpx;
-  background: linear-gradient(180deg, #eaf1fd 0%, #f5f7fa 60%);
+  padding: 0 60rpx;
+  box-sizing: border-box;
+  background: linear-gradient(170deg, #143a60 0%, #1b4d7e 34%, #eef1f5 34%, #eef1f5 100%);
 }
 
 .logo-area {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 120rpx;
+  margin-top: 200rpx;
 }
 
 .logo {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: 32rpx;
-  background: #2b6de5;
-  color: #fff;
-  font-size: 52rpx;
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 36rpx;
+  background: #ffffff;
+  color: #1b4d7e;
+  font-size: 60rpx;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 32rpx;
+  margin-bottom: 40rpx;
+  box-shadow: 0 16rpx 40rpx rgba(9, 30, 54, 0.28);
 }
 
 .title {
-  font-size: 40rpx;
-  font-weight: 600;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2rpx;
 }
 
 .subtitle {
@@ -39,8 +43,12 @@
   font-size: 26rpx;
 }
 
+/* 底部登录卡片，商务留白 */
 .login-btn {
-  width: 560rpx;
+  width: 100%;
+  max-width: 600rpx;
+  margin-top: auto;
+  margin-bottom: 120rpx;
 }
 
 .tip {

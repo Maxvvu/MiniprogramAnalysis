@@ -117,3 +117,48 @@ def add_knowledge(body: schemas.KnowledgeDocumentRequest, admin: dict = Depends(
 def set_knowledge_status(doc_id: int, body: schemas.AdminKnowledgeStatusRequest, admin: dict = Depends(auth.require_admin)):
     database.set_knowledge_status(doc_id, body.status)
     return {"id": doc_id, "status": body.status}
+
+
+# ---------- 报告反馈闭环：审阅 → 采纳进化知识库 ----------
+
+@router.get("/feedback")
+def list_feedback(status: str = "pending", admin: dict = Depends(auth.require_admin)):
+    """反馈列表。status 传空串或 all 表示全部，否则按状态过滤（默认只看待处理）。"""
+    filter_status = None if status in ("", "all") else status
+    return {"items": database.list_feedback_admin(filter_status)}
+
+
+@router.post("/feedback/{fid}/adopt")
+def adopt_feedback(fid: int, body: schemas.AdminFeedbackAdoptRequest, admin: dict = Depends(auth.require_admin)):
+    """采纳一条反馈，把销售的补充/纠正提炼入库，供后续分析检索引用（知识库进化）。"""
+    fb = database.get_feedback(fid)
+    if fb is None:
+        raise HTTPException(status_code=404, detail="反馈不存在")
+    comment = (fb.get("comment") or "").strip()
+    override_content = (body.content or "").strip()
+    if not comment and not override_content:
+        raise HTTPException(status_code=400, detail="该反馈没有文字补充，无可入库内容")
+
+    from agent import prompts
+
+    type_label = prompts.TYPE_LABELS.get(fb["customer_type"], "教培机构")
+    title = (body.title or "").strip() or f"客户反馈补充：{fb['customer_name']}"
+    category = (body.category or "").strip() or "case"
+    content = override_content or (
+        f"客户：{fb['customer_name']}（{type_label}）\n"
+        f"销售实地反馈补充/纠正：{comment}"
+    )
+    doc = database.create_knowledge_document(admin["id"], title, content, category)
+    database.update_feedback_status(fid, "adopted", adopted_document_id=doc["id"])
+    logger.info("管理员 %s 采纳反馈 %s 入库为文档 %s", admin["id"], fid, doc["id"])
+    return {"id": fid, "status": "adopted", "document_id": doc["id"], "title": doc["title"]}
+
+
+@router.post("/feedback/{fid}/dismiss")
+def dismiss_feedback(fid: int, admin: dict = Depends(auth.require_admin)):
+    """忽略一条反馈（无需入库）。"""
+    fb = database.get_feedback(fid)
+    if fb is None:
+        raise HTTPException(status_code=404, detail="反馈不存在")
+    database.update_feedback_status(fid, "dismissed")
+    return {"id": fid, "status": "dismissed"}

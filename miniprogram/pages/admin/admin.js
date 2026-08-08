@@ -15,7 +15,10 @@ Page({
     kTitle: '',
     kCategory: 'general',
     kContent: '',
-    saving: false
+    saving: false,
+    // 报告反馈
+    feedback: [],
+    feedbackFilter: 'pending'
   },
 
   async onShow() {
@@ -42,6 +45,7 @@ Page({
     const t = this.data.tab
     if (t === 'overview') this.loadOverview()
     else if (t === 'settings') this.loadSettings()
+    else if (t === 'feedback') this.loadFeedback()
     else this.loadKnowledge()
   },
 
@@ -194,5 +198,63 @@ Page({
     } catch (err) {
       wx.showToast({ title: err.message || '操作失败', icon: 'none' })
     }
+  },
+
+  async loadFeedback() {
+    const RATING = { useful: '👍 有用', needs_improvement: '✍️ 需改进' }
+    const STATUS = { pending: '待处理', adopted: '已入库', dismissed: '已忽略' }
+    try {
+      const res = await request(`/api/admin/feedback?status=${this.data.feedbackFilter}`)
+      const items = (res.items || []).map((f) => ({
+        ...f,
+        ratingText: RATING[f.rating] || f.rating,
+        statusText: STATUS[f.status] || f.status,
+        typeText: f.customer_type === 'teacher' ? '个体教师' : '教培机构',
+        createdText: this._fmt(f.created_at)
+      }))
+      this.setData({ feedback: items })
+    } catch (err) {
+      wx.showToast({ title: err.message || '加载失败', icon: 'none' })
+    }
+  },
+
+  switchFeedbackFilter(e) {
+    this.setData({ feedbackFilter: e.currentTarget.dataset.filter })
+    this.loadFeedback()
+  },
+
+  adoptFeedback(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    wx.showModal({
+      title: '采纳入库',
+      content: '将把这条销售补充/纠正沉淀为知识库文档，供后续分析检索引用。确认？',
+      success: async (r) => {
+        if (!r.confirm) return
+        try {
+          const res = await request(`/api/admin/feedback/${id}/adopt`, { method: 'POST', data: {} })
+          wx.showToast({ title: '已入库', icon: 'success' })
+          this.loadFeedback()
+        } catch (err) {
+          wx.showToast({ title: err.message || '操作失败', icon: 'none' })
+        }
+      }
+    })
+  },
+
+  dismissFeedback(e) {
+    const id = Number(e.currentTarget.dataset.id)
+    wx.showModal({
+      title: '忽略反馈',
+      content: '确认忽略这条反馈？（不会入库）',
+      success: async (r) => {
+        if (!r.confirm) return
+        try {
+          await request(`/api/admin/feedback/${id}/dismiss`, { method: 'POST', data: {} })
+          this.loadFeedback()
+        } catch (err) {
+          wx.showToast({ title: err.message || '操作失败', icon: 'none' })
+        }
+      }
+    })
   }
 })

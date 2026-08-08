@@ -15,16 +15,20 @@ SECTIONS = [
     ("summary", "一、客户总览与销售结论", "text"),
     ("overview", "二、客户概况", "text"),
     ("business_model", "三、业务模式与主打产品", "text"),
-    ("growth", "四、增量情况分析", "growth"),
-    ("revenue_payment", "五、营收与付费能力", "text"),
-    ("digitalization", "六、数字化与在线教学现状", "text"),
-    ("competitors", "七、竞品使用情况分析", "competitors"),
-    ("ka_rating", "八、KA 客户分级", "rating"),
-    ("sales_direction", "九、销售方向与打法建议", "sales"),
-    ("competitive_intel", "十、竞争情报", "competitive_intel"),
-    ("risks", "十一、风险与注意事项", "text"),
-    ("confidence", "十二、分析置信度", "confidence"),
-    ("info_note", "十三、信息来源说明", "text"),
+    ("conflicts", "四、数据冲突提示", "conflicts"),
+    ("growth", "五、增量情况分析", "growth"),
+    ("revenue_payment", "六、营收与付费能力", "text"),
+    ("digitalization", "七、数字化与在线教学现状", "text"),
+    ("competitors", "八、竞品使用情况分析", "competitors"),
+    ("classin_fit", "九、ClassIn 模块匹配度", "classin_fit"),
+    ("ka_rating", "十、KA 客户分级", "rating"),
+    ("sales_direction", "十一、销售方向与打法建议", "sales"),
+    ("decision_chain", "十二、决策链与关键人", "decision_chain"),
+    ("competitive_intel", "十三、竞争情报", "competitive_intel"),
+    ("reputation_compliance", "十四、舆情与合规风险", "reputation_compliance"),
+    ("risks", "十五、风险与注意事项", "text"),
+    ("confidence", "十六、分析置信度", "confidence"),
+    ("info_note", "十七、信息来源说明", "text"),
 ]
 
 # 中文文件名安全字符范围（等价于 \u4e00-\u9fff）
@@ -38,6 +42,27 @@ def _clean(text: str) -> str:
 
 def _fact_text(fact: object) -> str:
     return fact.get("fact", "") if isinstance(fact, dict) else str(fact)
+
+
+def _fmt_marked(item: object, key: str) -> str:
+    """把证据链对象 {key, is_inference, basis, confidence} 渲染成可读的一行。"""
+    if not isinstance(item, dict):
+        return _clean(item)
+    text = _clean(item.get(key, ""))
+    tags = []
+    if item.get("is_inference"):
+        tags.append("推断")
+    conf = item.get("confidence")
+    if conf:
+        tags.append(f"置信度{conf}")
+    basis = _clean(item.get("basis", ""))
+    suffix = ""
+    if tags or basis:
+        parts = "，".join(tags)
+        if basis:
+            parts = (parts + "；" if parts else "") + f"依据：{basis}"
+        suffix = f"（{parts}）"
+    return f"{text}{suffix}"
 
 
 def _safe_filename(name: str) -> str:
@@ -74,11 +99,11 @@ def render_markdown(name: str, customer_type: str, analysis: dict, profile: dict
             lines.append("")
             lines.append("**近期扩张动作：**")
             for action in value.get("expansion_actions", []):
-                lines.append(f"- {_clean(action)}")
+                lines.append(f"- {_fmt_marked(action, 'action')}")
             lines.append("")
             lines.append("**未来增量驱动力：**")
             for driver in value.get("increment_drivers", []):
-                lines.append(f"- {_clean(driver)}")
+                lines.append(f"- {_fmt_marked(driver, 'driver')}")
             lines.append("")
             tw = value.get("timing_window", {})
             lines.append(f"**最佳切入时间**：{tw.get('best_timing', '待确认')}")
@@ -95,6 +120,8 @@ def render_markdown(name: str, customer_type: str, analysis: dict, profile: dict
                 lines.append(f"- **使用场景**：{tool.get('usage_scenario', '未知')}")
                 lines.append(f"- **痛点**：{', '.join(tool.get('pain_points', []))}")
                 lines.append(f"- **替换机会**：{tool.get('replacement_opportunity', 'medium')}")
+                mark = "推断" if tool.get("is_inference") else "事实"
+                lines.append(f"- **依据（{mark}）**：{_clean(tool.get('basis', '未标注'))}")
                 lines.append("")
             lines.append(f"**替换成本**：{_clean(value.get('switch_barriers', '待评估'))}")
             lines.append("")
@@ -133,16 +160,90 @@ def render_markdown(name: str, customer_type: str, analysis: dict, profile: dict
             lines.append("")
             lines.append(f"**建议**：{_clean(value.get('recommendation', ''))}")
 
+        elif kind == "conflicts":
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                lines.append(f"- **{_clean(item.get('item', ''))}**")
+                for ver in item.get("versions", []):
+                    lines.append(f"  - 说法：{_clean(ver)}")
+                lines.append(f"  - 倾向采信：{_clean(item.get('preferred', ''))}")
+                lines.append(f"  - 理由：{_clean(item.get('reason', ''))}")
+
+        elif kind == "classin_fit":
+            lines.append(f"**综合匹配度**：{value.get('overall_score', '未知')}")
+            lines.append(f"**总体判断**：{_clean(value.get('summary', ''))}")
+            lines.append("")
+            for m in value.get("modules", []):
+                lines.append(f"- **{_clean(m.get('module', ''))}**（{m.get('fit_score', '?')}分）：{_clean(m.get('reason', ''))}")
+
+        elif kind == "decision_chain":
+            lines.append("**关键角色：**")
+            for role in value.get("key_roles", []):
+                mark = "（推断）" if role.get("is_inference") else ""
+                lines.append(f"- **{_clean(role.get('role', ''))}**{mark}：关注 {_clean(role.get('concern', ''))}；依据：{_clean(role.get('basis', ''))}")
+            lines.append("")
+            lines.append(f"**建议触达路径**：{_clean(value.get('recommended_path', ''))}")
+            lines.append(f"**预算归属**：{_clean(value.get('budget_owner', '未知'))}")
+
+        elif kind == "reputation_compliance":
+            lines.append(f"**舆情概览**：{_clean(value.get('public_sentiment', ''))}")
+            complaints = value.get("complaints", [])
+            if complaints:
+                lines.append("**投诉/负面：**")
+                for c in complaints:
+                    lines.append(f"- {_clean(c)}")
+            lines.append(f"**资质合规风险**：{_clean(value.get('qualification_risk', '未知'))}")
+            lines.append(f"**风险等级**：{value.get('risk_level', 'medium')}")
+
         else:
             lines.append(_clean(value))
 
         lines.append("")
 
+    reg = profile.get("business_registration")
+    if isinstance(reg, dict) and any(str(v).strip() not in ("", "未知") for v in reg.values()):
+        lines.append("## 附录一：工商档案")
+        lines.append("")
+        reg_fields = [
+            ("legal_name", "工商全称"), ("established", "成立时间"),
+            ("registered_capital", "注册资本"), ("legal_representative", "法定代表人"),
+            ("status", "经营状态"), ("branch_count", "分支机构/校区数"),
+            ("credit_code", "统一社会信用代码"), ("source_tier", "来源可信度"),
+        ]
+        for key, label in reg_fields:
+            val = reg.get(key)
+            if val and str(val).strip() != "未知":
+                lines.append(f"- **{label}**：{_clean(val)}")
+        lines.append("")
+
+    signals = profile.get("hiring_signals")
+    if isinstance(signals, list) and signals:
+        lines.append("## 附录二：招聘与扩张信号")
+        lines.append("")
+        for s in signals:
+            if not isinstance(s, dict):
+                continue
+            conf = s.get("confidence", "")
+            lines.append(f"- {_clean(s.get('signal', ''))} → {_clean(s.get('implication', ''))}（置信度{conf}）")
+        lines.append("")
+
     if profile.get("facts"):
-        lines.append("## 附录：事实档案")
+        lines.append("## 附录三：事实档案")
         lines.append("")
         for fact in profile["facts"]:
-            lines.append(f"- {_clean(_fact_text(fact))}")
+            text = _clean(_fact_text(fact))
+            if isinstance(fact, dict):
+                meta = []
+                if fact.get("source_tier"):
+                    meta.append(str(fact["source_tier"]))
+                if fact.get("published_at") and fact["published_at"] != "未知":
+                    meta.append(str(fact["published_at"]))
+                if fact.get("confidence"):
+                    meta.append(f"置信度{fact['confidence']}")
+                if meta:
+                    text += f"（{'｜'.join(meta)}）"
+            lines.append(f"- {text}")
     return "\n".join(lines)
 
 
@@ -188,10 +289,10 @@ def generate_docx(name: str, customer_type: str, analysis: dict, profile: dict) 
             doc.add_paragraph(f"增长率：{value.get('growth_rate', '未知')}")
             doc.add_heading("近期扩张动作", level=2)
             for action in value.get("expansion_actions", []):
-                doc.add_paragraph(_clean(action), style="List Bullet")
+                doc.add_paragraph(_fmt_marked(action, "action"), style="List Bullet")
             doc.add_heading("未来增量驱动力", level=2)
             for driver in value.get("increment_drivers", []):
-                doc.add_paragraph(_clean(driver), style="List Bullet")
+                doc.add_paragraph(_fmt_marked(driver, "driver"), style="List Bullet")
             tw = value.get("timing_window", {})
             doc.add_paragraph(f"最佳切入时间：{tw.get('best_timing', '待确认')}")
             doc.add_paragraph(f"需求紧迫度：{tw.get('urgency', 'medium')}")
@@ -207,6 +308,8 @@ def generate_docx(name: str, customer_type: str, analysis: dict, profile: dict) 
                 doc.add_paragraph(f"使用场景：{tool.get('usage_scenario', '未知')}")
                 doc.add_paragraph(f"痛点：{', '.join(tool.get('pain_points', []))}")
                 doc.add_paragraph(f"替换机会：{tool.get('replacement_opportunity', 'medium')}")
+                mark = "推断" if tool.get("is_inference") else "事实"
+                doc.add_paragraph(f"依据（{mark}）：{_clean(tool.get('basis', '未标注'))}")
             doc.add_paragraph(f"替换成本：{_clean(value.get('switch_barriers', '待评估'))}")
             doc.add_paragraph(f"共存策略：{_clean(value.get('coexist_strategy', '待确认'))}")
 
@@ -244,13 +347,93 @@ def generate_docx(name: str, customer_type: str, analysis: dict, profile: dict) 
             doc.add_paragraph(f"推断占比：{_clean(value.get('inference_ratio', ''))}")
             doc.add_paragraph(f"建议：{_clean(value.get('recommendation', ''))}")
 
+        elif kind == "conflicts":
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                p = doc.add_paragraph(style="List Bullet")
+                r = p.add_run(_clean(item.get("item", "")))
+                r.bold = True
+                for ver in item.get("versions", []):
+                    doc.add_paragraph(f"说法：{_clean(ver)}")
+                doc.add_paragraph(f"倾向采信：{_clean(item.get('preferred', ''))}")
+                doc.add_paragraph(f"理由：{_clean(item.get('reason', ''))}")
+
+        elif kind == "classin_fit":
+            doc.add_paragraph(f"综合匹配度：{value.get('overall_score', '未知')}")
+            doc.add_paragraph(f"总体判断：{_clean(value.get('summary', ''))}")
+            for m in value.get("modules", []):
+                p = doc.add_paragraph(style="List Bullet")
+                r = p.add_run(f"{_clean(m.get('module', ''))}（{m.get('fit_score', '?')}分）")
+                r.bold = True
+                doc.add_paragraph(_clean(m.get("reason", "")))
+
+        elif kind == "decision_chain":
+            doc.add_heading("关键角色", level=2)
+            for role in value.get("key_roles", []):
+                p = doc.add_paragraph(style="List Bullet")
+                mark = "（推断）" if role.get("is_inference") else ""
+                r = p.add_run(f"{_clean(role.get('role', ''))}{mark}")
+                r.bold = True
+                doc.add_paragraph(f"关注：{_clean(role.get('concern', ''))}")
+                doc.add_paragraph(f"依据：{_clean(role.get('basis', ''))}")
+            doc.add_paragraph(f"建议触达路径：{_clean(value.get('recommended_path', ''))}")
+            doc.add_paragraph(f"预算归属：{_clean(value.get('budget_owner', '未知'))}")
+
+        elif kind == "reputation_compliance":
+            doc.add_paragraph(f"舆情概览：{_clean(value.get('public_sentiment', ''))}")
+            complaints = value.get("complaints", [])
+            if complaints:
+                doc.add_heading("投诉/负面", level=2)
+                for c in complaints:
+                    doc.add_paragraph(_clean(c), style="List Bullet")
+            doc.add_paragraph(f"资质合规风险：{_clean(value.get('qualification_risk', '未知'))}")
+            doc.add_paragraph(f"风险等级：{value.get('risk_level', 'medium')}")
+
         else:
             doc.add_paragraph(_clean(value))
 
+    reg = profile.get("business_registration")
+    if isinstance(reg, dict) and any(str(v).strip() not in ("", "未知") for v in reg.values()):
+        doc.add_heading("附录一：工商档案", level=1)
+        reg_fields = [
+            ("legal_name", "工商全称"), ("established", "成立时间"),
+            ("registered_capital", "注册资本"), ("legal_representative", "法定代表人"),
+            ("status", "经营状态"), ("branch_count", "分支机构/校区数"),
+            ("credit_code", "统一社会信用代码"), ("source_tier", "来源可信度"),
+        ]
+        for fkey, label in reg_fields:
+            val = reg.get(fkey)
+            if val and str(val).strip() != "未知":
+                doc.add_paragraph(f"{label}：{_clean(val)}", style="List Bullet")
+
+    signals = profile.get("hiring_signals")
+    if isinstance(signals, list) and signals:
+        doc.add_heading("附录二：招聘与扩张信号", level=1)
+        for s in signals:
+            if not isinstance(s, dict):
+                continue
+            conf = s.get("confidence", "")
+            doc.add_paragraph(
+                f"{_clean(s.get('signal', ''))} → {_clean(s.get('implication', ''))}（置信度{conf}）",
+                style="List Bullet",
+            )
+
     if profile.get("facts"):
-        doc.add_heading("附录：事实档案", level=1)
+        doc.add_heading("附录三：事实档案", level=1)
         for fact in profile["facts"]:
-            doc.add_paragraph(_clean(_fact_text(fact)), style="List Bullet")
+            text = _clean(_fact_text(fact))
+            if isinstance(fact, dict):
+                meta_parts = []
+                if fact.get("source_tier"):
+                    meta_parts.append(str(fact["source_tier"]))
+                if fact.get("published_at") and fact["published_at"] != "未知":
+                    meta_parts.append(str(fact["published_at"]))
+                if fact.get("confidence"):
+                    meta_parts.append(f"置信度{fact['confidence']}")
+                if meta_parts:
+                    text += f"（{'｜'.join(meta_parts)}）"
+            doc.add_paragraph(text, style="List Bullet")
 
     path = config.REPORT_DIR / f"{_safe_filename(name)}_{time.strftime('%Y%m%d%H%M%S')}.docx"
     doc.save(path)

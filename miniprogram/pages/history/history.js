@@ -3,8 +3,8 @@ const { ensureLogin } = require('../../utils/auth')
 
 const STATUS_MAP = {
   pending: { label: '排队中', color: '#8a919f' },
-  running: { label: '分析中', color: '#2b6de5' },
-  done: { label: '已完成', color: '#52c41a' },
+  running: { label: '分析中', color: '#1b4d7e' },
+  done: { label: '已完成', color: '#1f9d6b' },
   failed: { label: '失败', color: '#f5222d' }
 }
 

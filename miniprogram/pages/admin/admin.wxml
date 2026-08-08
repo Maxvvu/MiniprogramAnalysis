@@ -3,6 +3,7 @@
     <view class="tab {{tab === 'overview' ? 'active' : ''}}" data-tab="overview" bindtap="switchTab">概览</view>
     <view class="tab {{tab === 'settings' ? 'active' : ''}}" data-tab="settings" bindtap="switchTab">设置</view>
     <view class="tab {{tab === 'knowledge' ? 'active' : ''}}" data-tab="knowledge" bindtap="switchTab">知识库</view>
+    <view class="tab {{tab === 'feedback' ? 'active' : ''}}" data-tab="feedback" bindtap="switchTab">反馈</view>
   </view>
 
   <!-- 概览 -->
@@ -75,6 +76,32 @@
         <view class="mini-btn" wx:else data-id="{{item.id}}" data-status="active" bindtap="toggleKnowledge">启用</view>
       </view>
       <view class="empty" wx:if="{{knowledge.length === 0}}">暂无文档</view>
+    </view>
+  </block>
+
+  <!-- 反馈 -->
+  <block wx:if="{{tab === 'feedback'}}">
+    <view class="card">
+      <view class="section-title">报告反馈（销售端）</view>
+      <view class="fb-filter">
+        <view class="fb-filter-btn {{feedbackFilter === 'pending' ? 'active' : ''}}" data-filter="pending" bindtap="switchFeedbackFilter">待处理</view>
+        <view class="fb-filter-btn {{feedbackFilter === 'all' ? 'active' : ''}}" data-filter="all" bindtap="switchFeedbackFilter">全部</view>
+      </view>
+      <view class="fb-row" wx:for="{{feedback}}" wx:key="id">
+        <view class="fb-head">
+          <text class="fb-name">{{item.customer_name}}（{{item.typeText}}）</text>
+          <text class="fb-status fb-{{item.status}}">{{item.statusText}}</text>
+        </view>
+        <view class="fb-meta">{{item.ratingText}} · {{item.createdText}}</view>
+        <view class="fb-comment" wx:if="{{item.comment}}">{{item.comment}}</view>
+        <view class="fb-comment fb-empty" wx:else>（无文字补充）</view>
+        <view class="fb-actions" wx:if="{{item.status === 'pending'}}">
+          <view class="mini-btn" wx:if="{{item.comment}}" data-id="{{item.id}}" bindtap="adoptFeedback">采纳入库</view>
+          <view class="mini-btn ghost" data-id="{{item.id}}" bindtap="dismissFeedback">忽略</view>
+        </view>
+        <view class="fb-meta" wx:if="{{item.status === 'adopted' && item.adopted_document_id}}">已入库文档 #{{item.adopted_document_id}}</view>
+      </view>
+      <view class="empty" wx:if="{{feedback.length === 0}}">暂无反馈</view>
     </view>
   </block>
 </view>

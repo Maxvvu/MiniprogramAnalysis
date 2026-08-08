@@ -110,5 +110,19 @@
         下载解决方案（发客户）
       </button>
     </view>
+
+    <view class="card feedback-card">
+      <view class="section-title">这份分析怎么样？</view>
+      <view class="text-secondary feedback-tip">你的反馈会帮助助手越来越懂客户（补充/纠正会沉淀进知识库）。</view>
+      <view class="rating-row">
+        <view class="rating-chip {{feedbackRating === 'useful' ? 'active-useful' : ''}}" data-rating="useful" bindtap="onPickRating">👍 有用</view>
+        <view class="rating-chip {{feedbackRating === 'needs_improvement' ? 'active-improve' : ''}}" data-rating="needs_improvement" bindtap="onPickRating">✍️ 需改进</view>
+      </view>
+      <textarea class="feedback-textarea" placeholder="补充或纠正信息（选填）：如实际校区数量、主打业务、报告哪里不准…" value="{{feedbackComment}}" bindinput="onFeedbackInput" maxlength="2000" />
+      <button class="btn-primary feedback-submit" loading="{{submittingFeedback}}" bindtap="submitFeedback">
+        {{feedbackSubmitted ? '更新反馈' : '提交反馈'}}
+      </button>
+      <view wx:if="{{feedbackSubmitted}}" class="text-secondary feedback-done">✓ 已提交，可随时修改后再次提交</view>
+    </view>
   </block>
 </view>

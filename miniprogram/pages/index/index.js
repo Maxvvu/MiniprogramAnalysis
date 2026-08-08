@@ -11,11 +11,7 @@ Page({
     isAdmin: false,
     showProfile: false,
     pName: '',
-    pPhone: '',
-    types: [
-      { value: 'institution', label: '教培机构' },
-      { value: 'teacher', label: '个体教师' }
-    ]
+    pPhone: ''
   },
 
   async onShow() {
@@ -84,10 +80,6 @@ Page({
 
   onNotesInput(e) {
     this.setData({ extraNotes: e.detail.value })
-  },
-
-  onSelectType(e) {
-    this.setData({ customerType: e.currentTarget.dataset.value })
   },
 
   async onSubmit() {

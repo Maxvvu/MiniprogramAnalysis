@@ -49,9 +49,9 @@ SCREEN_USER = """
 客户名称：{name}
 客户类型：{type_label}
 
-请联网搜索该公司，判断其是否属于教育行业。
+请基于你对该公司的了解，判断其是否属于教育行业。
 如果客户名称是简称或模糊名称（如"好未来""新东方"），请先补全为该公司的全称（如"好未来教育科技集团（TAL Education Group）"），
-再基于全称搜索判断。
+再基于全称判断。
 
 请输出 JSON：
 {{
@@ -63,7 +63,7 @@ SCREEN_USER = """
   ],
   "industry": "该公司的主要行业领域",
   "education_business": "教育相关业务描述（如果没有则填'无'）",
-  "business_scale_hint": "如果能从搜索中初步判断规模（大型/中型/小型），在此说明，否则填'未知'",
+  "business_scale_hint": "如果能从你的知识中初步判断规模（大型/中型/小型），在此说明，否则填'未知'",
   "reason": "判断依据，简述"
 }}
 
@@ -81,6 +81,13 @@ PROFILE_SYSTEM = CLASSIN_CONTEXT + """
 【任务】
 你是销售助理研究员。根据提供的联网搜索材料，整理目标客户的事实档案。
 只整理材料中出现或有依据的信息，禁止编造数字与事实；材料中没有的信息标记为"未知"。
+
+【来源可信度分层】
+每条搜索材料的来源行都带有「可信度」标注，可信度从高到低为：
+工商信息 / 官方政府 > 主流媒体 > 招聘平台 > 普通网页 > 低质来源。
+- 提取事实时优先采信高可信来源；对同一事项，高可信来源与低质来源冲突时以高可信来源为准。
+- 仅有"低质来源"或"普通网页"支撑的数字（如营收、学员规模、校区数），confidence 一律不得高于 medium。
+- 若不同来源对同一关键数据（如校区数、成立时间、学员规模）存在明显矛盾，必须在对应 fact 中如实说明冲突，不得擅自二选一而不标注。
 
 【教育行业识别标准】
 以下都属于教育/培训领域，应判定为教育公司：
@@ -120,7 +127,34 @@ PROFILE_USER = """
 请输出 JSON：
 {{
   "identity": "客户身份确认（是否找到匹配该名称的机构/教师，简述）",
-  "facts": [{{"fact": "从材料中确认的事实", "source_urls": ["对应的搜索来源 URL"], "confidence": "high / medium / low"}}],
+  "business_registration": {{
+    "legal_name": "工商注册全称（无据填'未知'）",
+    "established": "成立时间（如 2015-06，无据填'未知'）",
+    "registered_capital": "注册资本（如 1000 万元，无据填'未知'）",
+    "legal_representative": "法定代表人（无据填'未知'）",
+    "status": "经营状态（存续/在业/注销等，无据填'未知'）",
+    "branch_count": "分支机构/关联校区数量（无据填'未知'）",
+    "credit_code": "统一社会信用代码（无据填'未知'）",
+    "source_tier": "上述信息主要来源可信度（工商信息/官方/媒体/普通网页/未知）"
+  }},
+  "hiring_signals": [
+    {{
+      "signal": "招聘信号：在招岗位、扩张城市、团队规模变化",
+      "implication": "对增长/扩张的指示意义",
+      "source_urls": ["来源 URL"],
+      "confidence": "high / medium / low"
+    }}
+  ],
+  "facts": [
+    {{
+      "fact": "从材料中确认的事实",
+      "source_urls": ["对应的搜索来源 URL"],
+      "source_title": "来源标题（如文章标题或网页标题）",
+      "source_tier": "该来源可信度（工商信息/官方/媒体/招聘/普通网页/低质来源）",
+      "published_at": "发布时间（如 2024-03、2023 等，无法确认则填'未知'）",
+      "confidence": "high / medium / low"
+    }}
+  ],
   "unknowns": ["销售关心但材料中缺失的关键信息"],
   "confidence": "high / medium / low（材料与目标客户的匹配可信度）"
 }}
@@ -134,16 +168,22 @@ ANALYSIS_SYSTEM = CLASSIN_CONTEXT + """
 1. 结论先行、有销售目的性——每一节都要回答"所以我们应该怎么卖"。
 2. 增量情况重点分析：业务扩张方向、学员/校区增长、新业务线、可带来增量的场景。
    - 必须明确标注最佳切入时间窗口（timing_window）
+   - timing_window 必须以用户消息中给出的"当前日期"为基准向后推算，只给出该日期之后、仍然可执行的时间窗口；绝不能给出已经过去的时间。材料中的历史动作（如某年某月推出的训练营）只能作为季节性规律参考，不能直接当作切入窗口。
    - 必须量化增量潜力（potential_value）
 3. 营收情况允许基于行业常识做区间估算，但必须注明"估算"及依据。
-4. 区分"事实"与"推断"，推断内容用"推断："前缀。
+4. 严格区分"事实"与"推断"：推断内容必须用 is_inference=true 标记，并在 basis 中说明推断依据。无证据时输出空数组或"未知"，禁止编造。
 5. KA 分级标准：S=年付费潜力 10 万+ 且需求明确；A=3-10 万；B=1-3 万；C=1 万以下或暂无明确需求。
-6. 竞品分析必须结构化：至少列出 2 个可能使用的工具，标注痛点和替换机会。
-7. 销售切入点必须按优先级排序，标注成功率和预估价值。
+6. 竞品分析结构化：列出可能使用的工具并标注痛点和替换机会。若无直接证据但可基于行业常识合理推断客户可能使用的工具（如通用视频会议/直播工具），应列出并标 is_inference=true、在 basis 中说明推断依据，以便与 objections 保持一致；仅在完全无法合理推断时才输出空数组。
+7. 销售切入点按优先级排序，标注成功率和预估价值。
 8. 所有分析必须给出置信度评估，帮助销售判断是否需要补充调研。
+9. 引用溯源：陈述具体数字或关键事实时，尽量在句末用 [事实N] 标注其来源于事实档案中第 N 条 fact（N 为档案中 facts 的序号，从 1 开始）；纯行业常识推断则不标 [事实N] 而用 is_inference 标记。
+10. 冲突检测：若事实档案中存在相互矛盾的数据（如不同来源的校区数、成立时间、学员规模不一致），必须在 conflicts 字段中逐条列出，并给出你倾向采信的一方及理由（优先高可信来源）。
+11. 新增三个维度必须认真填写：决策链与关键人（decision_chain）、舆情与合规风险（reputation_compliance）、ClassIn 模块匹配度打分（classin_fit）。无证据时按要求输出'未知'或空数组，但打分维度需基于已知事实合理估计并说明依据。
 """
 
 ANALYSIS_USER = """
+【当前日期】今天是 {today}。所有时间判断（尤其 timing_window）必须以此为基准，只输出该日期之后、仍可执行的时间窗口；材料中出现的历史日期（如某年某月的训练营/融资/开业）只能作为季节性或增长规律的参考，绝不能把已过去的日期当作切入窗口。
+
 客户名称：{name}
 全称/补全名称：{full_name}
 客户类型：{type_label}
@@ -158,19 +198,42 @@ ANALYSIS_USER = """
 可引用的 ClassIn 内部知识资料：
 {knowledge_context}
 
-请输出 JSON（所有字段必填，数组字段至少 2 条）：
+请输出 JSON（所有字段必填，如无证据可输出空数组或'未知'）：
 {{
   "summary": "3 句话以内的客户总览与销售结论",
   "overview": "客户概况：定位、规模、区域、成立时间、业务构成",
   "business_model": "业务模式与主打产品：收入来源、客群、定价特点",
 
+  "conflicts": [
+    {{
+      "item": "存在矛盾的数据项（如：校区数量）",
+      "versions": ["来源A的说法", "来源B的说法"],
+      "preferred": "你倾向采信的版本",
+      "reason": "理由（如：工商信息可信度高于普通网页）"
+    }}
+  ],
+
   "growth": {{
     "current_scale": "当前规模：校区数/学员数/年营收（能确认的数字，无数据填'未知'）",
     "growth_rate": "近 1-2 年增长率（如有数据）或'未知'",
-    "expansion_actions": ["近 6 个月的扩张动作：开新校区、新业务线、融资、并购等，至少 1 条"],
-    "increment_drivers": ["未来 1-2 年的增量来源：新校区、新产品线、学员扩招等，至少 2 条"],
+    "expansion_actions": [
+      {{
+        "action": "扩张动作描述：开新校区、新业务线、融资、并购等",
+        "is_inference": true/false,
+        "basis": "判断依据（如来源标题或推断逻辑）",
+        "confidence": "high / medium / low"
+      }}
+    ],
+    "increment_drivers": [
+      {{
+        "driver": "增量来源描述：新校区、新产品线、学员扩招等",
+        "is_inference": true/false,
+        "basis": "判断依据",
+        "confidence": "high / medium / low"
+      }}
+    ],
     "timing_window": {{
-      "best_timing": "最佳切入时间（如：Q3 新校区开业前/融资后扩张期），基于增量动作判断",
+      "best_timing": "最佳切入时间，必须晚于当前日期（如：今年寒/暑假班开课前、下一次新校区开业前 1-2 个月），结合增量动作与教培季节性规律判断",
       "urgency": "high / medium / low（需求紧迫度）",
       "reason": "判断依据"
     }},
@@ -183,10 +246,12 @@ ANALYSIS_USER = """
   "competitors": {{
     "current_tools": [
       {{
-        "product": "产品名称（如钉钉、腾讯会议、小鹅通、保利威等），至少推断 2 个",
+        "product": "产品名称（如钉钉、腾讯会议、小鹅通、保利威等）",
         "usage_scenario": "使用场景（如：内部培训/对外直播课/录播课）",
-        "pain_points": ["该工具的明显痛点，至少 1 条"],
-        "replacement_opportunity": "high / medium / low（替换机会）"
+        "is_inference": true/false,
+        "pain_points": ["该工具的明显痛点"],
+        "replacement_opportunity": "high / medium / low（替换机会）",
+        "basis": "推断依据（如行业常识、类似案例）"
       }}
     ],
     "switch_barriers": "替换成本与风险分析",
@@ -209,7 +274,7 @@ ANALYSIS_USER = """
         "estimated_value": "该场景预估单值（如首单 5-8 万）"
       }}
     ],
-    "first_actions": ["建议的首次接触动作与沟通要点（开场白方向），至少 2 条"],
+    "first_actions": ["建议的首次接触动作与沟通要点（开场白方向）"],
     "objections": [
       {{"objection": "客户最可能提出的异议", "response": "应对话术方向"}}
     ]
@@ -219,6 +284,38 @@ ANALYSIS_USER = """
     "peer_comparison": "与同类机构对比（规模、模式、数字化程度）",
     "market_position": "在区域/细分市场的地位（如：区域龙头/腰部机构/新兴品牌）",
     "threat_level": "high / medium / low（竞对跟进该客户的可能性，基于客户知名度和市场地位判断）"
+  }},
+
+  "decision_chain": {{
+    "key_roles": [
+      {{
+        "role": "关键决策/影响角色（如校长、教学总监、IT 负责人、创始人）",
+        "concern": "该角色最关心的诉求",
+        "is_inference": true/false,
+        "basis": "依据（招聘信息/工商法人/行业惯例）"
+      }}
+    ],
+    "recommended_path": "建议的触达路径与顺序（先找谁、由谁拍板）",
+    "budget_owner": "预算归属推断（无据填'未知'）"
+  }},
+
+  "reputation_compliance": {{
+    "public_sentiment": "舆情概览：口碑、投诉、负面报道（无则填'未见明显负面'）",
+    "complaints": ["具体投诉/负面点，如退费纠纷、教学质量投诉，无则空数组"],
+    "qualification_risk": "办学资质/合规风险（如是否有办学许可、双减政策影响），无据填'未知'",
+    "risk_level": "high / medium / low"
+  }},
+
+  "classin_fit": {{
+    "modules": [
+      {{
+        "module": "ClassIn 能力模块（如互动在线教室、双师课堂、OMO、录播回放、教务管理）",
+        "fit_score": "1-5 分（5=高度契合）",
+        "reason": "打分依据，结合客户具体场景"
+      }}
+    ],
+    "overall_score": "综合匹配度 1-5 分",
+    "summary": "一句话说明 ClassIn 与该客户的整体契合度"
   }},
 
   "risks": "跟进该客户的风险与注意事项",
@@ -235,11 +332,12 @@ ANALYSIS_USER = """
 }}
 
 【重要提示】
-1. growth.increment_drivers 和 growth.timing_window 是销售最关心的，必须具体分析
-2. competitors.current_tools 至少列出 2 个可能的工具，即使是推断也要基于行业常识
+1. growth.increment_drivers 和 growth.timing_window 是销售最关心的，必须具体分析，但如无证据可输出空数组
+2. competitors.current_tools 如无确凿证据可输出空数组，避免编造
 3. sales_direction.entry_points 按 priority 排序，priority=1 的是最推荐的
 4. confidence 字段帮助销售判断是否需要补充调研
-5. 所有 high/medium/low 判断必须在 reason 中说明依据
+5. 所有 high/medium/low 判断必须在 reason 或 basis 中说明依据
+6. 使用 is_inference 字段明确区分事实与推断，basis 说明推断依据
 """
 
 TYPE_LABELS = {
@@ -287,3 +385,35 @@ SOLUTION_USER = """
   "why_classin": "为什么选择 ClassIn，2-3 个差异化理由，针对客户现有替代方案"
 }}
 """
+
+
+# ---------- 知识库上传：文档提炼（上传时一次性调用，用便宜档模型） ----------
+
+KNOWLEDGE_DISTILL_SYSTEM = """你是 ClassIn KA（大客户）销售知识库的内容策展人。
+你的任务：读取一份原始文档（可能是产品方案、行业案例、竞品资料、常见异议问答等），
+把其中"对销售分析和方案撰写真正有用的信息"提炼成简洁、结构化、便于全文检索的知识条目。
+
+严格遵守：
+1. 忠于原文，只做提炼和归纳，绝不虚构数据、报价、案例或结论；原文没有的不要补。
+2. 去掉页眉页脚、页码、目录、版权声明、排版噪音、重复空话等无价值内容。
+3. 输出中文；正文用"短标签 + 要点"的朴素纯文本组织（不要 Markdown 表格/图片），
+   便于后续切片入库检索。聚焦：产品/方案要点、适用场景、客户价值、关键数据/报价、可复用话术。
+4. 如果文档信息量很小或基本无有效内容，也要如实提炼，不要硬凑。"""
+
+KNOWLEDGE_DISTILL_USER = """文件名：{filename}
+
+原始文档内容（可能已截断）：
+\"\"\"
+{raw_text}
+\"\"\"
+
+请把上面文档提炼为知识库条目，并只输出如下 JSON：
+{{
+  "title": "简洁准确的条目标题（可参考文件名，20 字以内）",
+  "category": "从以下选一个：product（产品方案）/ case（行业案例）/ competitor（竞品对比）/ faq（常见异议问答）/ general（其他）",
+  "summary": "2-4 句话的内容概览，说明这条知识讲了什么、什么场景下有用",
+  "content": "提炼后的结构化知识正文，中文纯文本，用『要点：…』这类短标签分条组织，聚焦对 KA 销售有用的信息，忠于原文不虚构",
+  "tags": ["关键词1", "关键词2", "关键词3"]
+}}
+"""
+

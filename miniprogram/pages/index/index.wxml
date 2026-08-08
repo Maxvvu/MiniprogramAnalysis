@@ -1,25 +1,17 @@
 <view class="page">
-  <view class="admin-entry" wx:if="{{isAdmin}}" bindtap="onOpenAdmin">管理后台</view>
+  <view class="top-header" wx:if="{{isAdmin}}">
+    <view class="admin-entry" bindtap="onOpenAdmin">管理后台</view>
+  </view>
   <view class="card">
     <view class="section-title">客户名称</view>
     <input
       class="input"
       placeholder="输入机构名称或教师姓名，如：星辰教育"
+      placeholder-class="input-ph"
       value="{{customerName}}"
       bindinput="onNameInput"
       maxlength="50"
     />
-
-    <view class="section-title type-title">客户类型</view>
-    <view class="type-row">
-      <view
-        wx:for="{{types}}"
-        wx:key="value"
-        class="type-item {{customerType === item.value ? 'active' : ''}}"
-        data-value="{{item.value}}"
-        bindtap="onSelectType"
-      >{{item.label}}</view>
-    </view>
 
     <view class="section-title type-title">补充信息（可选）</view>
     <textarea
