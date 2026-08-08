@@ -1,0 +1,35 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/history/history",
+    "pages/customers/customers",
+    "pages/customer/customer",
+    "pages/report/report",
+    "pages/login/login",
+    "pages/admin/admin"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#2B6DE5",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "噜噜的小助手",
+    "backgroundColor": "#F5F7FA"
+  },
+  "tabBar": {
+    "color": "#9AA3AF",
+    "selectedColor": "#2B6DE5",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "客户分析"
+      },
+      {
+        "pagePath": "pages/history/history",
+        "text": "分析记录"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

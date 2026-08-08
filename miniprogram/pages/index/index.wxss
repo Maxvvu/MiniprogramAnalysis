@@ -1,0 +1,99 @@
+.page {
+  padding-bottom: 60rpx;
+}
+
+.input {
+  border: 2rpx solid #e5e8ee;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+}
+
+.type-title {
+  margin-top: 36rpx;
+}
+
+.type-row {
+  display: flex;
+  gap: 20rpx;
+}
+
+.type-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border: 2rpx solid #e5e8ee;
+  border-radius: 12rpx;
+  color: #5a6270;
+}
+
+.type-item.active {
+  border-color: #2b6de5;
+  color: #2b6de5;
+  background: #eef4fe;
+  font-weight: 500;
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2rpx solid #e5e8ee;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  height: 160rpx;
+  font-size: 26rpx;
+}
+
+.submit-area {
+  margin: 48rpx 24rpx 0;
+}
+
+.submit-tip {
+  text-align: center;
+  margin-top: 20rpx;
+}
+
+.admin-entry {
+  text-align: right;
+  padding: 16rpx 24rpx 0;
+  color: #2b6de5;
+  font-size: 26rpx;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99;
+}
+
+.modal {
+  width: 600rpx;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx 36rpx;
+  box-sizing: border-box;
+}
+
+.modal-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modal-desc {
+  font-size: 24rpx;
+  color: #9aa3af;
+  text-align: center;
+  margin: 12rpx 0 28rpx;
+}
+
+.modal-skip {
+  text-align: center;
+  color: #9aa3af;
+  font-size: 26rpx;
+  margin-top: 24rpx;
+}

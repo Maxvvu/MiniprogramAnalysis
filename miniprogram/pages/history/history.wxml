@@ -1,0 +1,39 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="empty-tip">加载中…</view>
+
+  <block wx:else>
+    <view wx:if="{{allItems.length}}" class="top-bar">
+      <view class="search-bar">
+        <input class="search-input" placeholder="搜索客户名称" value="{{searchKey}}" bindinput="onSearchInput" />
+      </view>
+      <view class="clear-btn" bindtap="onClearAll">清空</view>
+    </view>
+
+    <view wx:if="{{!items.length && !searchKey}}" class="empty-tip">
+      还没有分析记录\n去「客户分析」提交第一个客户吧
+    </view>
+    <view wx:elif="{{!items.length && searchKey}}" class="empty-tip">没有匹配「{{searchKey}}」的记录</view>
+
+    <view wx:else>
+      <view
+        wx:for="{{items}}"
+        wx:key="id"
+        class="card item"
+        data-id="{{item.id}}"
+        bindtap="onTapItem"
+      >
+        <view class="item-top">
+          <view class="item-name">{{item.customer_name}}</view>
+          <view wx:if="{{item.rating}}" class="mini-badge">{{item.rating}}</view>
+          <view class="item-status" style="color: {{item.statusColor}}">{{item.statusLabel}}</view>
+        </view>
+        <view class="item-bottom">
+          <view class="text-secondary">{{item.typeLabel}}</view>
+          <view class="text-secondary">{{item.timeText}}</view>
+        </view>
+        <view wx:if="{{item.status === 'running'}}" class="text-secondary stage-text">{{item.stage}}</view>
+        <view class="delete-btn" catchtap="onDelete" data-id="{{item.id}}">删除</view>
+      </view>
+    </view>
+  </block>
+</view>

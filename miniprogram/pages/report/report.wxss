@@ -1,0 +1,215 @@
+.page {
+  padding-bottom: 80rpx;
+}
+
+.progress-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 96rpx 32rpx;
+}
+
+.spinner {
+  width: 64rpx;
+  height: 64rpx;
+  border: 6rpx solid #e5e8ee;
+  border-top-color: #2b6de5;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  margin-bottom: 32rpx;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+
+.progress-tip {
+  margin-top: 24rpx;
+  text-align: center;
+}
+
+.steps {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  margin: 40rpx 0 24rpx;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.step-dot {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #9aa3af;
+  background: #eef0f3;
+}
+
+.step.done .step-dot {
+  background: #2b6de5;
+  color: #fff;
+}
+
+.step.current .step-dot {
+  background: #fff;
+  color: #2b6de5;
+  border: 4rpx solid #2b6de5;
+}
+
+.step-label {
+  font-size: 22rpx;
+  color: #9aa3af;
+}
+
+.step.current .step-label {
+  color: #2b6de5;
+  font-weight: 600;
+}
+
+.step.done .step-label {
+  color: #5a6270;
+}
+
+.progress-elapsed {
+  margin-top: 12rpx;
+}
+
+.cancel-btn {
+  margin-top: 32rpx;
+  background: #fff;
+  color: #5a6270;
+  border: 2rpx solid #d5dae2;
+  font-size: 26rpx;
+  border-radius: 12rpx;
+}
+
+.retry-btn {
+  margin-top: 40rpx;
+}
+
+.report-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 24rpx 8rpx;
+}
+
+.report-name {
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.report-meta {
+  color: #8a919f;
+  font-size: 24rpx;
+  margin-top: 8rpx;
+}
+
+.rating-badge {
+  margin-top: 20rpx;
+  padding: 8rpx 32rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
+  background: #8a919f;
+}
+
+.rating-S {
+  background: #d4380d;
+}
+
+.rating-A {
+  background: #2b6de5;
+}
+
+.rating-B {
+  background: #08979c;
+}
+
+.rating-C {
+  background: #8a919f;
+}
+
+.content {
+  line-height: 1.75;
+  color: #3a4150;
+}
+
+.sub-title {
+  font-weight: 600;
+  margin: 24rpx 0 12rpx;
+  color: #2b6de5;
+}
+
+.bullet {
+  line-height: 1.7;
+  color: #3a4150;
+  margin-bottom: 8rpx;
+}
+
+.objection-item {
+  background: #f5f7fa;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.objection-q {
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.objection-a {
+  color: #3a4150;
+}
+
+.download-area {
+  margin: 48rpx 24rpx 0;
+}
+
+.divider {
+  text-align: center;
+  color: #2b6de5;
+  font-size: 24rpx;
+  margin: 56rpx 0 8rpx;
+}
+
+.solution-card {
+  border-top: 6rpx solid #2b6de5;
+}
+
+.solution-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  margin-bottom: 24rpx;
+}
+
+.btn-secondary {
+  margin-top: 20rpx;
+  background: #fff;
+  color: #2b6de5;
+  border: 2rpx solid #2b6de5;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 84rpx;
+}

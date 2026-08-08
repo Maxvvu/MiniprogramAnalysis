@@ -1,0 +1,43 @@
+node_modules/
+.env
+.env.*
+.DS_Store
+dist/
+build/
+id_rsa
+*.pem
+
+# Local AI / development tool files
+.workbuddy/
+
+# Proxy / server configuration
+v2ray-config.json
+xray-config.json
+xray-config-sg002.json
+
+# Local AI / development tool files
+.workbuddy/
+
+# Proxy / server configuration
+v2ray-config.json
+xray-config.json
+xray-config-sg002.json
+backend/.venv/
+backend/.venv/
+data/db/*.db
+*.backup
+
+# Secrets / local config
+backend/.env
+id_rsa
+*.key
+
+# Secrets / local config
+backend/.env
+id_rsa
+*.key
+miniprogram/project.private.config.json
+data/db/
+data/reports/
+data/db/
+data/reports/

@@ -1,0 +1,57 @@
+<view class="page">
+  <view class="admin-entry" wx:if="{{isAdmin}}" bindtap="onOpenAdmin">管理后台</view>
+  <view class="card">
+    <view class="section-title">客户名称</view>
+    <input
+      class="input"
+      placeholder="输入机构名称或教师姓名，如：星辰教育"
+      value="{{customerName}}"
+      bindinput="onNameInput"
+      maxlength="50"
+    />
+
+    <view class="section-title type-title">客户类型</view>
+    <view class="type-row">
+      <view
+        wx:for="{{types}}"
+        wx:key="value"
+        class="type-item {{customerType === item.value ? 'active' : ''}}"
+        data-value="{{item.value}}"
+        bindtap="onSelectType"
+      >{{item.label}}</view>
+    </view>
+
+    <view class="section-title type-title">补充信息（可选）</view>
+    <textarea
+      class="textarea"
+      placeholder="你已了解的情况，如：校区数量、意向产品、接触进展等，可提升分析针对性"
+      value="{{extraNotes}}"
+      bindinput="onNotesInput"
+      maxlength="500"
+    />
+  </view>
+
+  <view class="submit-area">
+    <button class="btn-primary" loading="{{submitting}}" disabled="{{quotaRemaining === 0}}" bindtap="onSubmit">
+      开始分析
+    </button>
+    <view class="text-secondary submit-tip" wx:if="{{quotaRemaining !== null}}">
+      今日剩余免费次数：{{quotaRemaining}}
+    </view>
+    <view class="text-secondary submit-tip">
+      分析包含全套销售维度评估，约需 1-3 分钟
+    </view>
+  </view>
+
+  <!-- 自愿填写姓名+手机号引导弹窗（可跳过） -->
+  <view class="mask" wx:if="{{showProfile}}" catchtap="onSkipProfile">
+    <view class="modal" catchtap="">
+      <view class="modal-title">完善联系方式（选填）</view>
+      <view class="modal-desc">便于为你建立客户档案与服务联系，仅内部使用。</view>
+      <input class="input" placeholder="姓名 / 称呼" value="{{pName}}" data-key="pName" bindinput="onProfileInput" />
+      <input class="input" style="margin-top:16rpx" type="number" maxlength="11" placeholder="手机号" value="{{pPhone}}" data-key="pPhone" bindinput="onProfileInput" />
+      <button class="btn-primary" bindtap="onSubmitProfile">提交</button>
+      <view class="modal-skip" bindtap="onSkipProfile">暂不填写，跳过</view>
+    </view>
+  </view>
+</view>

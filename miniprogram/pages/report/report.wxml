@@ -1,0 +1,114 @@
+<view class="page">
+  <!-- 分析进行中 -->
+  <view wx:if="{{status === 'running' || status === 'loading'}}" class="card progress-card">
+    <view class="spinner"></view>
+    <view class="progress-title">正在分析客户…</view>
+
+    <view class="steps" wx:if="{{steps.length}}">
+      <view class="step {{item.state}}" wx:for="{{steps}}" wx:key="label">
+        <view class="step-dot">{{index + 1}}</view>
+        <view class="step-label">{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="text-secondary">{{stage}}</view>
+    <view class="text-secondary progress-elapsed" wx:if="{{elapsedText}}">已耗时 {{elapsedText}}</view>
+    <button class="cancel-btn" bindtap="onCancel">取消分析</button>
+    <view class="text-secondary progress-tip">全套维度分析约需 1-3 分钟，可稍后在「分析记录」查看</view>
+  </view>
+
+  <!-- 失败 -->
+  <view wx:elif="{{status === 'failed'}}" class="card">
+    <view class="section-title">分析失败</view>
+    <view class="text-secondary">{{error}}</view>
+    <button class="btn-primary retry-btn" bindtap="onRetry">返回重试</button>
+  </view>
+
+  <!-- 报告内容 -->
+  <block wx:else>
+    <view class="report-header">
+      <view class="report-name">{{customerName}}</view>
+      <view class="report-meta">{{customerTypeLabel}}</view>
+      <view wx:if="{{rating}}" class="rating-badge rating-{{rating}}">KA 分级：{{rating}}</view>
+    </view>
+
+    <view wx:if="{{ratingReason}}" class="card">
+      <view class="section-title">分级理由</view>
+      <view class="content">{{ratingReason}}</view>
+    </view>
+
+    <view wx:for="{{sections}}" wx:key="title" class="card">
+      <view class="section-title">{{item.title}}</view>
+      <view class="content">{{item.content}}</view>
+    </view>
+
+    <view wx:if="{{sales}}" class="card">
+      <view class="section-title">销售方向与打法建议</view>
+      <view class="sub-title">推荐切入点</view>
+      <view wx:for="{{sales.entry_points}}" wx:for-item="point" wx:key="*this" class="bullet">• {{point}}</view>
+      <view class="sub-title">首次接触建议</view>
+      <view wx:for="{{sales.first_actions}}" wx:for-item="action" wx:key="*this" class="bullet">• {{action}}</view>
+      <block wx:if="{{sales.objections.length}}">
+        <view class="sub-title">预期异议与应对</view>
+        <view wx:for="{{sales.objections}}" wx:for-item="obj" wx:key="objection" class="objection-item">
+          <view class="objection-q">异议：{{obj.objection}}</view>
+          <view class="objection-a">应对：{{obj.response}}</view>
+        </view>
+      </block>
+    </view>
+
+    <view wx:if="{{facts.length}}" class="card">
+      <view class="section-title">附录：事实档案</view>
+      <view wx:for="{{facts}}" wx:key="*this" class="bullet">• {{item}}</view>
+    </view>
+
+    <!-- 面向客户的解决方案 -->
+    <block wx:if="{{solution}}">
+      <view class="divider">▼ 面向客户的解决方案 ▼</view>
+
+      <view class="card solution-card">
+        <view class="solution-title">{{solution.title}}</view>
+        <view class="section-title">我们对贵方业务的理解</view>
+        <view class="content">{{solution.understanding}}</view>
+
+        <view class="sub-title">当前面临的核心挑战</view>
+        <view wx:for="{{solution.challenges}}" wx:key="*this" class="bullet">• {{item}}</view>
+
+        <view class="sub-title">方案总体思路</view>
+        <view class="content">{{solution.solution_overview}}</view>
+
+        <view class="sub-title">推荐能力模块</view>
+        <view wx:for="{{solution.modules}}" wx:for-item="mod" wx:key="name" class="objection-item">
+          <view class="objection-q">{{mod.name}}</view>
+          <view class="objection-a">作用：{{mod.purpose}}</view>
+          <view class="objection-a">价值：{{mod.value}}</view>
+        </view>
+
+        <view class="sub-title">场景化设计</view>
+        <view wx:for="{{solution.scenarios}}" wx:for-item="sc" wx:key="name" class="objection-item">
+          <view class="objection-q">{{sc.name}}</view>
+          <view class="objection-a">{{sc.description}}</view>
+          <view class="objection-a">预期效果：{{sc.expected_effect}}</view>
+        </view>
+
+        <view class="sub-title">实施路径</view>
+        <view wx:for="{{solution.roadmap}}" wx:for-item="rd" wx:key="phase" class="bullet">• {{rd.phase}}：{{rd.actions}}</view>
+
+        <view class="sub-title">预期回报</view>
+        <view class="content">{{solution.roi}}</view>
+
+        <view class="sub-title">为什么选择 ClassIn</view>
+        <view class="content">{{solution.why_classin}}</view>
+      </view>
+    </block>
+
+    <view class="download-area">
+      <button class="btn-primary" loading="{{downloading}}" bindtap="onDownload">
+        下载内部分析报告
+      </button>
+      <button wx:if="{{solution}}" class="btn-secondary" loading="{{downloadingSolution}}" bindtap="onDownloadSolution">
+        下载解决方案（发客户）
+      </button>
+    </view>
+  </block>
+</view>

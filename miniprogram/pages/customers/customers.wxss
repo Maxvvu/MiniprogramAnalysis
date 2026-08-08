@@ -1,0 +1,7 @@
+.page { padding: 24rpx; }
+.card { background: #fff; border-radius: 16rpx; margin-bottom: 18rpx; padding: 26rpx; box-shadow: 0 4rpx 16rpx rgba(24, 54, 91, .06); }
+.name { font-size: 32rpx; font-weight: 600; color: #1f2937; }
+.type { margin-top: 8rpx; font-size: 24rpx; color: #2b6de5; }
+.summary { margin-top: 16rpx; font-size: 26rpx; color: #4b5563; line-height: 1.55; white-space: pre-wrap; }
+.muted, .empty { color: #9aa3af; }
+.empty { padding: 100rpx 40rpx; text-align: center; font-size: 28rpx; }

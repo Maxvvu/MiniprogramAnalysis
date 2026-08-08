@@ -1,0 +1,80 @@
+<view class="page">
+  <view class="tabs">
+    <view class="tab {{tab === 'overview' ? 'active' : ''}}" data-tab="overview" bindtap="switchTab">概览</view>
+    <view class="tab {{tab === 'settings' ? 'active' : ''}}" data-tab="settings" bindtap="switchTab">设置</view>
+    <view class="tab {{tab === 'knowledge' ? 'active' : ''}}" data-tab="knowledge" bindtap="switchTab">知识库</view>
+  </view>
+
+  <!-- 概览 -->
+  <block wx:if="{{tab === 'overview'}}">
+    <view class="card" wx:if="{{stats}}">
+      <view class="section-title">运营概览</view>
+      <view class="stat-row">
+        <view class="stat"><view class="num">{{stats.total_users}}</view><view class="label">用户数</view></view>
+        <view class="stat"><view class="num">{{stats.total_tasks}}</view><view class="label">总分析</view></view>
+        <view class="stat"><view class="num">{{stats.today_tasks}}</view><view class="label">今日</view></view>
+        <view class="stat"><view class="num">{{stats.failed_tasks}}</view><view class="label">失败</view></view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">用户与额度（全局 {{globalLimit}} 次/天）</view>
+      <input class="input search" placeholder="搜索 ID / 姓名 / 电话 / openid" value="{{searchKey}}" bindinput="onSearchInput" />
+      <view class="user-row" wx:for="{{users}}" wx:key="id">
+        <view class="user-head">
+          <text class="user-name">#{{item.id}} {{item.real_name || item.nickname || '未命名'}}</text>
+          <text class="user-sub">注册 {{item.createdText}}</text>
+        </view>
+        <view class="user-sub" wx:if="{{item.phone}}" style="margin-top:6rpx">电话 {{item.phone}}</view>
+        <view class="user-sub" style="margin-top:6rpx">今 {{item.today_tasks}} / 总 {{item.total_tasks}} / 败 {{item.failed_tasks}}</view>
+        <view class="quota-line">
+          <input class="quota-input" type="number" placeholder="默认" value="{{item.editQuota}}" data-id="{{item.id}}" bindinput="onQuotaInput" />
+          <view class="mini-btn" data-id="{{item.id}}" bindtap="saveQuota">保存</view>
+        </view>
+      </view>
+      <view class="empty" wx:if="{{users.length === 0}}">暂无匹配用户</view>
+    </view>
+  </block>
+
+  <!-- 设置 -->
+  <block wx:if="{{tab === 'settings' && settings}}">
+    <view class="card">
+      <view class="section-title">大模型配置（保存即生效）</view>
+      <view class="field-label">Base URL</view>
+      <input class="input" value="{{settings.llm_base_url}}" data-key="llm_base_url" bindinput="onSettingInput" />
+      <view class="field-label">模型</view>
+      <input class="input" value="{{settings.llm_model}}" data-key="llm_model" bindinput="onSettingInput" />
+      <view class="field-label">API Key（当前 {{settings.llm_api_key_masked}}，留空或保持打码=不修改）</view>
+      <input class="input" value="{{settings.llm_api_key_masked}}" data-key="llm_api_key" bindinput="onSettingInput" />
+      <view class="field-label">全局每日免费次数</view>
+      <input class="input" type="number" value="{{settings.daily_free_limit}}" data-key="daily_free_limit" bindinput="onSettingInput" />
+      <view class="switch-line">
+        <text>联网搜索</text>
+        <switch checked="{{settings.search_enabled}}" bindchange="onSearchToggle" />
+      </view>
+      <button class="btn-primary" loading="{{saving}}" bindtap="saveSettings">保存设置</button>
+    </view>
+  </block>
+
+  <!-- 知识库 -->
+  <block wx:if="{{tab === 'knowledge'}}">
+    <view class="card">
+      <view class="section-title">添加知识文档</view>
+      <input class="input" placeholder="标题" value="{{kTitle}}" data-key="kTitle" bindinput="onKInput" />
+      <input class="input" style="margin-top:16rpx" placeholder="分类（如 general / product / case）" value="{{kCategory}}" data-key="kCategory" bindinput="onKInput" />
+      <textarea class="textarea" style="margin-top:16rpx" placeholder="正文内容（至少20字），将用于分析时检索引用" value="{{kContent}}" data-key="kContent" bindinput="onKInput" />
+      <button class="btn-primary" loading="{{saving}}" bindtap="addKnowledge">添加</button>
+    </view>
+
+    <view class="card">
+      <view class="section-title">已有文档</view>
+      <view class="k-row" wx:for="{{knowledge}}" wx:key="id">
+        <view class="k-title">{{item.title}}（{{item.category}}）</view>
+        <view class="k-sub">{{item.chars}} 字 · {{item.status === 'active' ? '启用' : '停用'}}</view>
+        <view class="mini-btn" wx:if="{{item.status === 'active'}}" data-id="{{item.id}}" data-status="archived" bindtap="toggleKnowledge">停用</view>
+        <view class="mini-btn" wx:else data-id="{{item.id}}" data-status="active" bindtap="toggleKnowledge">启用</view>
+      </view>
+      <view class="empty" wx:if="{{knowledge.length === 0}}">暂无文档</view>
+    </view>
+  </block>
+</view>

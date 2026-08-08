@@ -1,0 +1,12 @@
+<view class="page">
+  <view wx:if="{{loading}}" class="empty">加载中…</view>
+  <view wx:elif="{{!items.length}}" class="empty">还没有客户记忆。完成一次客户分析后会自动建立。</view>
+  <view wx:else>
+    <view wx:for="{{items}}" wx:key="id" class="card" data-id="{{item.id}}" bindtap="onTapCustomer">
+      <view class="name">{{item.name}}</view>
+      <view class="type">{{item.customer_type === 'teacher' ? '个体教师' : '教培机构'}}</view>
+      <view wx:if="{{item.summary}}" class="summary">{{item.summary}}</view>
+      <view wx:else class="summary muted">暂未生成摘要</view>
+    </view>
+  </view>
+</view>

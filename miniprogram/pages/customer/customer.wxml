@@ -1,0 +1,7 @@
+<view class="page" wx:if="{{customer}}">
+  <view class="card"><view class="name">{{customer.name}}</view><view class="type">{{customer.customer_type === 'teacher' ? '个体教师' : '教培机构'}}</view></view>
+  <view class="card"><view class="title">Agent 记忆摘要</view><view class="content">{{customer.memory.summary.summary || '暂无摘要'}}</view></view>
+  <view class="card"><view class="title">已收集事实</view><view wx:for="{{customer.memory.facts}}" wx:key="id" class="item">• {{item.fact}}</view><view wx:if="{{!customer.memory.facts.length}}" class="muted">暂无事实</view></view>
+  <view class="card"><view class="title">新增销售跟进</view><textarea class="input" value="{{note}}" bindinput="onNoteInput" maxlength="2000" placeholder="如：8 月 20 日电话沟通，对线上直播培训有兴趣…"/><button class="button" loading="{{saving}}" bindtap="saveNote">保存跟进</button></view>
+  <view class="card"><view class="title">历史跟进</view><view wx:for="{{customer.memory.notes}}" wx:key="id" class="item">{{item.content}}</view><view wx:if="{{!customer.memory.notes.length}}" class="muted">暂无跟进记录</view></view>
+</view>

@@ -1,0 +1,84 @@
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx 0;
+}
+
+.search-bar {
+  flex: 1;
+}
+
+.search-input {
+  border: 2rpx solid #e5e8ee;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 26rpx;
+  background: #fff;
+}
+
+.clear-btn {
+  color: #f5222d;
+  font-size: 26rpx;
+  white-space: nowrap;
+  padding: 8rpx 0;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #8a919f;
+  padding-top: 200rpx;
+  white-space: pre-line;
+  line-height: 1.8;
+}
+
+.item {
+  position: relative;
+  padding: 28rpx 32rpx;
+  background: #fff;
+}
+
+.item-top {
+  display: flex;
+  align-items: center;
+}
+
+.item-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-badge {
+  background: #2b6de5;
+  color: #fff;
+  font-size: 22rpx;
+  border-radius: 8rpx;
+  padding: 2rpx 12rpx;
+  margin-right: 16rpx;
+}
+
+.item-status {
+  font-size: 24rpx;
+}
+
+.item-bottom {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12rpx;
+}
+
+.stage-text {
+  margin-top: 8rpx;
+}
+
+.delete-btn {
+  position: absolute;
+  right: 32rpx;
+  bottom: 28rpx;
+  color: #f5222d;
+  font-size: 24rpx;
+}

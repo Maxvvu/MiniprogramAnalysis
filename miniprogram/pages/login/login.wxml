@@ -1,0 +1,12 @@
+<view class="login-page">
+  <view class="logo-area">
+    <view class="logo">噜</view>
+    <view class="title">噜噜的小助手</view>
+    <view class="subtitle">教培客户 · 销售导向 · 智能分析</view>
+  </view>
+
+  <button class="btn-primary login-btn" loading="{{loading}}" bindtap="onTapLogin">
+    微信一键登录
+  </button>
+  <view class="text-secondary tip">登录即代表同意将客户名称用于生成分析报告</view>
+</view>
