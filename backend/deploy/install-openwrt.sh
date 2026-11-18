@@ -42,7 +42,7 @@ cat > "$INSTALL_DIR/run.sh" <<'EOF'
 #!/bin/sh
 cd /opt/ka-agent
 [ -f .env ] && { set -a; . ./.env; set +a; }
-exec ./venv/bin/uvicorn main:app --host "${HOST:-0.0.0.0}" --port "${PORT:-8080}"
+exec ./venv/bin/uvicorn main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8080}"
 EOF
 chmod +x "$INSTALL_DIR/run.sh"
 

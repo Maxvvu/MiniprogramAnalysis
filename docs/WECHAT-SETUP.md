@@ -16,8 +16,8 @@ WX_SECRET=你的AppSecret
 
 1. 打开微信开发者工具 → 导入项目 → 选择 `miniprogram/` 目录
 2. AppID 填你自己的（不要选测试号，测试号无法调用 wx.login 换取 openid）
-3. 修改 `miniprogram/utils/config.js` 中的 `API_BASE_URL` 为你的后端地址
-4. 详情 → 本地设置 → 勾选「不校验合法域名…」（开发阶段必须）
+3. 修改 `miniprogram/utils/config.js` 中的 `API_BASE_URL` 为已配置有效证书的 HTTPS 域名（只填 origin，不含 API 路径）
+4. 保持合法域名、TLS 和证书校验开启；地址留空或使用 HTTP 时客户端会阻止请求与下载
 
 ## 3. 正式发布的域名要求
 

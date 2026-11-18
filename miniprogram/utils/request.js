@@ -1,15 +1,16 @@
-const { API_BASE_URL } = require('./config')
+const { buildApiUrl } = require('./api-url')
 
 /**
  * 统一请求封装：自动带 Token、统一错误处理
  */
 function request(path, { method = 'GET', data = {}, auth = true } = {}) {
   return new Promise((resolve, reject) => {
+    const url = buildApiUrl(path)
     const header = { 'Content-Type': 'application/json' }
     const token = wx.getStorageSync('token')
     if (auth && token) header['Authorization'] = `Bearer ${token}`
     wx.request({
-      url: API_BASE_URL + path,
+      url,
       method,
       data,
       header,

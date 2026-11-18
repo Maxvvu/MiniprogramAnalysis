@@ -13,7 +13,7 @@ def _env(key: str, default: str = "") -> str:
 
 
 # ---------- 服务 ----------
-HOST = _env("HOST", "0.0.0.0")
+HOST = _env("HOST", "127.0.0.1")
 PORT = int(_env("PORT", "8080"))
 # 数据目录：SQLite 数据库与生成的报告存放位置
 DATA_DIR = Path(_env("DATA_DIR", str(BASE_DIR.parent / "data")))
@@ -30,7 +30,12 @@ WX_SECRET = _env("WX_SECRET")
 WX_LOGIN_URL = "https://api.weixin.qq.com/sns/jscode2session"
 
 # ---------- JWT 会话 ----------
-JWT_SECRET = _env("JWT_SECRET", "change-me-in-production")
+JWT_SECRET = _env("JWT_SECRET")
+if len(JWT_SECRET.encode("utf-8")) < 32:
+    raise RuntimeError(
+        "JWT_SECRET must be explicitly configured with at least 32 bytes; "
+        "generate a random secret with: openssl rand -hex 32"
+    )
 JWT_ALG = "HS256"
 JWT_EXPIRE_DAYS = int(_env("JWT_EXPIRE_DAYS", "30"))
 
