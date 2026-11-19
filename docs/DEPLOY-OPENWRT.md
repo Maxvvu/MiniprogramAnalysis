@@ -6,7 +6,7 @@
 ## 架构总览
 
 ```
-微信小程序 ──HTTPS──> OpenWrt (8080 端口)
+微信小程序 ──HTTPS:443──> Nginx/Caddy ──> 127.0.0.1:8080
                         ├── FastAPI 服务
                         │     ├── 微信登录 (调用微信 jscode2session)
                         │     ├── 分析任务 (后台线程异步执行)
@@ -18,7 +18,7 @@
 ## 前置准备
 
 1. 确认路由器可访问外网（大模型 API 与搜索都需要）。
-2. 准备配置信息，参考 `backend/.env.example` 创建 `.env`：
+2. 准备配置信息：Docker Compose 使用项目的 `backend/.env`；原生安装后编辑 `/opt/ka-agent/.env`（不是源码目录的 `.env`）：
    - `WX_APPID` / `WX_SECRET`：见 [微信小程序配置](WECHAT-SETUP.md)
    - `JWT_SECRET`：随机长字符串，可用 `openssl rand -hex 32` 生成
    - `LLM_API_KEY`：阿里云百炼平台 https://bailian.console.aliyun.com 开通并创建 API Key
@@ -38,7 +38,7 @@ opkg install dockerd docker-compose
 
 ```sh
 cd /opt/classin-ka-agent
-cp backend/.env.example backend/.env && vi backend/.env   # 填入配置
+vi backend/.env   # 填入配置
 cd backend/deploy
 docker-compose up -d --build
 ```
@@ -54,6 +54,8 @@ curl http://127.0.0.1:8080/api/health
 
 ## 方式 B：原生部署（无 Docker）
 
+> 当前原生安装脚本仅安装和启动 Web 服务，不安装或管理分析 Worker。Web 启动和健康检查成功不代表分析任务可执行。需要完整分析功能时优先使用方式 A 的 Compose（包含 Web 与 Worker）；仅当你已单独部署 `backend/worker.py` 常驻服务，并确保它与 Web 使用相同配置及同一 `DATA_DIR` 时，才采用原生方式。本次配置修复不补齐 Worker 服务管理。
+
 ```sh
 cd /opt/classin-ka-agent/backend
 sh deploy/install-openwrt.sh
@@ -61,17 +63,17 @@ vi /opt/ka-agent/.env          # 填入配置
 /etc/init.d/ka-agent start
 ```
 
+首次安装会创建权限为 600、密钥为空的 `/opt/ka-agent/.env` 配置骨架，不依赖 `.env.example`。启动前必须填写随机 `JWT_SECRET`（至少 32 字节）、微信配置及模型 API Key，保留 `HOST=127.0.0.1`。配置由 `/bin/sh` 加载，特殊字符需正确引用。重复安装不会覆盖已有 `.env`；修改配置后执行 `/etc/init.d/ka-agent restart`，密钥轮换会使旧登录失效。
+
 日志：`logread -f`；重启自启已自动配置。
 
 ## 让小程序能访问到服务
 
 微信小程序对后端地址有硬性要求，分两个阶段：
 
-### 开发调试阶段（立即可用）
+### 开发调试阶段
 
-1. 小程序 `utils/config.js` 中 `API_BASE_URL` 填 `http://路由器IP:8080`
-2. 微信开发者工具 → 详情 → 本地设置 → 勾选「不校验合法域名、TLS 版本以及 HTTPS 证书」
-3. 手机预览时手机需与路由器同一局域网，并在手机上开启调试模式（真机调试）
+与正式环境一样配置有效证书的 HTTPS 反向代理。未就绪时仅在服务器本机访问健康检查接口，不通过 HTTP 传输微信登录 code、Bearer Token 或客户数据。Docker 仅监听宿主机回环地址，反向代理需在同一宿主机运行。
 
 ### 正式使用阶段（必须 HTTPS + 备案域名）
 
@@ -81,12 +83,11 @@ vi /opt/ka-agent/.env          # 填入配置
 - **无公网 IP**：用一台有备案域名的轻量云服务器做 frp 内网穿透中转，或直接把后端部署到该云服务器（本服务资源占用很低，1核2G 足够）。
 - 纯内网穿透服务（如 Cloudflare Tunnel）的域名通常无法备案，小程序正式环境不可用，仅适合开发调试。
 
-> 建议：如果只是团队内部使用且暂不备案，开发版 + 「不校验合法域名」即可长期凑合用；
-> 要正式发布给用户，域名备案这一步绕不开。
+> 不要关闭域名或证书校验来长期使用 HTTP。升级前参阅 [安全迁移清单](SECURITY-MIGRATION.md)。
 
 ## 常见问题
 
 - **pip 安装慢**：脚本已默认使用阿里云镜像；Docker 构建时可在 Dockerfile 的 pip 命令后加 `-i https://mirrors.aliyun.com/pypi/simple/`
 - **搜索没结果**：DuckDuckGo 在部分网络环境不通，可在 `.env` 设 `SEARCH_ENABLED=false`，Agent 会基于行业常识分析并注明信息有限
 - **时间不同步导致 JWT/HTTPS 报错**：确认 OpenWrt 已启用 NTP（系统 → 时间同步）
-- **修改 .env 后不生效**：Docker 需 `docker-compose restart`；原生需 `/etc/init.d/ka-agent restart`
+- **修改 .env 后不生效**：Docker 需 `docker-compose up -d --force-recreate`（仅 restart 不会更新容器环境变量）；原生需 `/etc/init.d/ka-agent restart`

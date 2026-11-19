@@ -1,5 +1,5 @@
 const { request } = require('../../utils/request')
-const { API_BASE_URL } = require('../../utils/config')
+const { buildApiUrl } = require('../../utils/api-url')
 
 const SECTION_KEYS = [
   ['summary', '客户总览与销售结论'],
@@ -126,10 +126,17 @@ Page({
 
   onDownload() {
     if (this.data.downloading) return
+    let url
+    try {
+      url = buildApiUrl(`/api/analysis/${this.data.taskId}/docx`)
+    } catch (err) {
+      wx.showToast({ title: err.message, icon: 'none' })
+      return
+    }
     this.setData({ downloading: true })
     wx.showLoading({ title: '下载中…' })
     wx.downloadFile({
-      url: `${API_BASE_URL}/api/analysis/${this.data.taskId}/docx`,
+      url,
       header: { Authorization: `Bearer ${wx.getStorageSync('token')}` },
       success: (res) => {
         wx.hideLoading()
@@ -154,10 +161,17 @@ Page({
 
   onDownloadSolution() {
     if (this.data.downloadingSolution) return
+    let url
+    try {
+      url = buildApiUrl(`/api/analysis/${this.data.taskId}/solution-docx`)
+    } catch (err) {
+      wx.showToast({ title: err.message, icon: 'none' })
+      return
+    }
     this.setData({ downloadingSolution: true })
     wx.showLoading({ title: '下载中…' })
     wx.downloadFile({
-      url: `${API_BASE_URL}/api/analysis/${this.data.taskId}/solution-docx`,
+      url,
       header: { Authorization: `Bearer ${wx.getStorageSync('token')}` },
       success: (res) => {
         wx.hideLoading()

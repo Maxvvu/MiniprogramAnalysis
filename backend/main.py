@@ -1,4 +1,4 @@
-"""FastAPI 入口。启动：uvicorn main:app --host 0.0.0.0 --port 8080"""
+"""FastAPI 入口。启动：uvicorn main:app --host 127.0.0.1 --port 8080"""
 import logging
 
 from fastapi import FastAPI
