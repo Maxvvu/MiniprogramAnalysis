@@ -31,10 +31,24 @@ else
 fi
 
 echo "==> 4/5 初始化配置文件"
-if [ ! -f "$INSTALL_DIR/.env" ]; then
-    cp "$INSTALL_DIR/../backend/.env.example" "$INSTALL_DIR/.env" 2>/dev/null \
-        || cp "$SCRIPT_DIR/.env.example" "$INSTALL_DIR/.env"
-    echo "!! 请编辑 $INSTALL_DIR/.env 填入小程序 AppID/Secret 和大模型 API Key"
+# 不依赖源码中不存在的 .env.example；保留已有配置（包括符号链接）。
+if [ ! -e "$INSTALL_DIR/.env" ] && [ ! -L "$INSTALL_DIR/.env" ]; then
+    (
+        umask 077
+        set -C  # 防止检查后出现的已有文件被覆盖
+        cat > "$INSTALL_DIR/.env" <<'ENV'
+# 原生部署配置；启动前必须填写，切勿提交真实密钥到 Git。
+# JWT_SECRET 使用 openssl rand -hex 32 在部署主机本地生成。
+# 此文件由 /bin/sh 加载；值含特殊字符时需正确引用。
+HOST=127.0.0.1
+PORT=8080
+JWT_SECRET=
+WX_APPID=
+WX_SECRET=
+LLM_API_KEY=
+ENV
+    )
+    echo "!! 请编辑 $INSTALL_DIR/.env 填入随机 JWT_SECRET、小程序 AppID/Secret 和大模型 API Key"
 fi
 
 echo "==> 5/5 安装启动脚本与开机自启"

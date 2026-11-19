@@ -18,7 +18,7 @@
 ## 前置准备
 
 1. 确认路由器可访问外网（大模型 API 与搜索都需要）。
-2. 准备配置信息，在 `backend/.env` 创建配置：
+2. 准备配置信息：Docker Compose 使用项目的 `backend/.env`；原生安装后编辑 `/opt/ka-agent/.env`（不是源码目录的 `.env`）：
    - `WX_APPID` / `WX_SECRET`：见 [微信小程序配置](WECHAT-SETUP.md)
    - `JWT_SECRET`：随机长字符串，可用 `openssl rand -hex 32` 生成
    - `LLM_API_KEY`：阿里云百炼平台 https://bailian.console.aliyun.com 开通并创建 API Key
@@ -54,12 +54,16 @@ curl http://127.0.0.1:8080/api/health
 
 ## 方式 B：原生部署（无 Docker）
 
+> 当前原生安装脚本仅安装和启动 Web 服务，不安装或管理分析 Worker。Web 启动和健康检查成功不代表分析任务可执行。需要完整分析功能时优先使用方式 A 的 Compose（包含 Web 与 Worker）；仅当你已单独部署 `backend/worker.py` 常驻服务，并确保它与 Web 使用相同配置及同一 `DATA_DIR` 时，才采用原生方式。本次配置修复不补齐 Worker 服务管理。
+
 ```sh
 cd /opt/classin-ka-agent/backend
 sh deploy/install-openwrt.sh
 vi /opt/ka-agent/.env          # 填入配置
 /etc/init.d/ka-agent start
 ```
+
+首次安装会创建权限为 600、密钥为空的 `/opt/ka-agent/.env` 配置骨架，不依赖 `.env.example`。启动前必须填写随机 `JWT_SECRET`（至少 32 字节）、微信配置及模型 API Key，保留 `HOST=127.0.0.1`。配置由 `/bin/sh` 加载，特殊字符需正确引用。重复安装不会覆盖已有 `.env`；修改配置后执行 `/etc/init.d/ka-agent restart`，密钥轮换会使旧登录失效。
 
 日志：`logread -f`；重启自启已自动配置。
 
